@@ -9,6 +9,9 @@ import mage.player.ai.encoder.LabeledState;
 import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -48,6 +51,12 @@ public final class LabeledStateWriter implements Closeable, Flushable {
         // chunk size for /indices
 
         try {
+
+            Path parentDir = Paths.get(path).getParent();
+            if (parentDir != null && !Files.exists(parentDir)) {
+                Files.createDirectories(parentDir);
+            }
+            
             this.writer = HDF5Factory.configure(path)
                     .overwrite()
                     .useUTF8CharacterEncoding()
