@@ -14,13 +14,16 @@ import org.mage.magezero.ParallelDataGenerator;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KrenkoMain {
-    private static final int GAMES_PER_TEST = 4;
-    private static final int MAX_TURNS = 50;
-    private static final String OPPONENT_DECK = "Mage.Tests/decks/BGRoots.dck";
-    private static final String TEST_DECK = "Mage.Tests/decks/BWBats.dck";
+    private static final int GAMES_PER_TEST = 1;
+    private static final int MAX_TURNS = 20;
+    private static final String OPPONENT_DECK = "Mage.MageZero/decks/BGRoots.dck";
+    private static final String TEST_DECK = "Mage.MageZero/decks/BWBats.dck";
 
     public static void main(String[] args) {
+        System.out.println("Current working directory: " + System.getProperty("user.dir"));
         Config.load("Mage.MageZero/config/krenko_config.yml");
+        RepositoryUtil.bootstrapLocalDb();
+        CardScanner.scan();
         Config.INSTANCE.playerA.deckPath = TEST_DECK;
         Config.INSTANCE.playerB.deckPath = OPPONENT_DECK;
         Config.INSTANCE.playerA.type = "mcts";
