@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Deck xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <NetDeckID>0</NetDeckID>
+  <PreconstructedDeckID>0</PreconstructedDeckID>
+  <Cards CatID="146699" Quantity="2" Sideboard="false" Name="Sear" Annotation="0"/>
+  <Cards CatID="130049" Quantity="4" Sideboard="false" Name="Razorkin Needlehead" Annotation="0"/>
+  <Cards CatID="62924" Quantity="2" Sideboard="false" Name="Shock" Annotation="0"/>
+  <Cards CatID="136943" Quantity="4" Sideboard="false" Name="Burnout Bashtronaut" Annotation="0"/>
+  <Cards CatID="57149" Quantity="4" Sideboard="false" Name="Burst Lightning" Annotation="0"/>
+  <Cards CatID="147147" Quantity="4" Sideboard="false" Name="Hexing Squelcher" Annotation="0"/>
+  <Cards CatID="79630" Quantity="20" Sideboard="false" Name="Mountain" Annotation="0"/>
+  <Cards CatID="117534" Quantity="3" Sideboard="false" Name="Ojer Axonil, Deepest Might" Annotation="0"/>
+  <Cards CatID="129525" Quantity="4" Sideboard="false" Name="Hired Claw" Annotation="0"/>
+  <Cards CatID="132982" Quantity="4" Sideboard="false" Name="Soulstone Sanctuary" Annotation="0"/>
+  <Cards CatID="139209" Quantity="2" Sideboard="false" Name="Tersa Lightshatter" Annotation="0"/>
+  <Cards CatID="129173" Quantity="1" Sideboard="false" Name="Sunspine Lynx" Annotation="0"/>
+  <Cards CatID="142909" Quantity="4" Sideboard="false" Name="Nova Hellkite" Annotation="0"/>
+  <Cards CatID="50573" Quantity="2" Sideboard="false" Name="Lightning Strike" Annotation="0"/>
+  <Cards CatID="146699" Quantity="2" Sideboard="true" Name="Sear" Annotation="0"/>
+  <Cards CatID="124179" Quantity="4" Sideboard="true" Name="Magebane Lizard" Annotation="0"/>
+  <Cards CatID="145126" Quantity="1" Sideboard="true" Name="The Legend of Roku" Annotation="0"/>
+  <Cards CatID="142873" Quantity="1" Sideboard="true" Name="Cut Propulsion" Annotation="0"/>
+  <Cards CatID="79598" Quantity="3" Sideboard="true" Name="Soul-Guide Lantern" Annotation="0"/>
+  <Cards CatID="62924" Quantity="1" Sideboard="true" Name="Shock" Annotation="0"/>
+  <Cards CatID="129173" Quantity="3" Sideboard="true" Name="Sunspine Lynx" Annotation="0"/>
+</Deck>

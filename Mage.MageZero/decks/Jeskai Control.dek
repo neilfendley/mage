@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Deck xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <NetDeckID>0</NetDeckID>
+  <PreconstructedDeckID>0</PreconstructedDeckID>
+  <Cards CatID="139575" Quantity="1" Sideboard="false" Name="Cori Mountain Monastery" Annotation="0"/>
+  <Cards CatID="121434" Quantity="1" Sideboard="false" Name="Elegant Parlor" Annotation="0"/>
+  <Cards CatID="139583" Quantity="2" Sideboard="false" Name="Mistrise Village" Annotation="0"/>
+  <Cards CatID="121446" Quantity="2" Sideboard="false" Name="Thundering Falls" Annotation="0"/>
+  <Cards CatID="117706" Quantity="1" Sideboard="false" Name="Restless Anchorage" Annotation="0"/>
+  <Cards CatID="124061" Quantity="2" Sideboard="false" Name="Three Steps Ahead" Annotation="0"/>
+  <Cards CatID="145142" Quantity="1" Sideboard="false" Name="Wan Shi Tong, Librarian" Annotation="0"/>
+  <Cards CatID="142715" Quantity="4" Sideboard="false" Name="Consult the Star Charts" Annotation="0"/>
+  <Cards CatID="130649" Quantity="4" Sideboard="false" Name="Floodfarm Verge" Annotation="0"/>
+  <Cards CatID="142681" Quantity="2" Sideboard="false" Name="Seam Rip" Annotation="0"/>
+  <Cards CatID="46503" Quantity="3" Sideboard="false" Name="Hallowed Fountain" Annotation="0"/>
+  <Cards CatID="139411" Quantity="2" Sideboard="false" Name="Shiko, Paragon of the Way" Annotation="0"/>
+  <Cards CatID="117674" Quantity="4" Sideboard="false" Name="Get Lost" Annotation="0"/>
+  <Cards CatID="139707" Quantity="3" Sideboard="false" Name="Jeskai Revelation" Annotation="0"/>
+  <Cards CatID="79626" Quantity="1" Sideboard="false" Name="Island" Annotation="0"/>
+  <Cards CatID="139049" Quantity="1" Sideboard="false" Name="Marang River Regent" Annotation="0"/>
+  <Cards CatID="121916" Quantity="4" Sideboard="false" Name="No More Lies" Annotation="0"/>
+  <Cards CatID="132852" Quantity="2" Sideboard="false" Name="Day of Judgment" Annotation="0"/>
+  <Cards CatID="121910" Quantity="4" Sideboard="false" Name="Lightning Helix" Annotation="0"/>
+  <Cards CatID="122020" Quantity="2" Sideboard="false" Name="Meticulous Archive" Annotation="0"/>
+  <Cards CatID="47815" Quantity="3" Sideboard="false" Name="Sacred Foundry" Annotation="0"/>
+  <Cards CatID="136257" Quantity="3" Sideboard="false" Name="Stock Up" Annotation="0"/>
+  <Cards CatID="136861" Quantity="2" Sideboard="false" Name="Riverpyre Verge" Annotation="0"/>
+  <Cards CatID="79624" Quantity="1" Sideboard="false" Name="Plains" Annotation="0"/>
+  <Cards CatID="69927" Quantity="1" Sideboard="false" Name="Steam Vents" Annotation="0"/>
+  <Cards CatID="136863" Quantity="2" Sideboard="false" Name="Sunbillow Verge" Annotation="0"/>
+  <Cards CatID="141209" Quantity="1" Sideboard="false" Name="Fire Magic" Annotation="0"/>
+  <Cards CatID="140999" Quantity="1" Sideboard="false" Name="Ultima" Annotation="0"/>
+  <Cards CatID="140999" Quantity="1" Sideboard="true" Name="Ultima" Annotation="0"/>
+  <Cards CatID="127892" Quantity="1" Sideboard="true" Name="Rest in Peace" Annotation="0"/>
+  <Cards CatID="39998" Quantity="2" Sideboard="true" Name="Torpor Orb" Annotation="0"/>
+  <Cards CatID="117678" Quantity="2" Sideboard="true" Name="Tishana's Tidebinder" Annotation="0"/>
+  <Cards CatID="117818" Quantity="3" Sideboard="true" Name="Kutzil's Flanker" Annotation="0"/>
+  <Cards CatID="133300" Quantity="2" Sideboard="true" Name="Authority of the Consuls" Annotation="0"/>
+  <Cards CatID="141209" Quantity="1" Sideboard="true" Name="Fire Magic" Annotation="0"/>
+  <Cards CatID="139647" Quantity="3" Sideboard="true" Name="Voice of Victory" Annotation="0"/>
+</Deck>

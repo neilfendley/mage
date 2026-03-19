@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Deck xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <NetDeckID>0</NetDeckID>
+  <PreconstructedDeckID>0</PreconstructedDeckID>
+  <Cards CatID="139685" Quantity="2" Sideboard="false" Name="Surrak, Elusive Hunter" Annotation="0"/>
+  <Cards CatID="118406" Quantity="1" Sideboard="false" Name="Promising Vein" Annotation="0"/>
+  <Cards CatID="144834" Quantity="4" Sideboard="false" Name="Earthbender Ascension" Annotation="0"/>
+  <Cards CatID="143013" Quantity="4" Sideboard="false" Name="Mightform Harmonizer" Annotation="0"/>
+  <Cards CatID="141309" Quantity="4" Sideboard="false" Name="Esper Origins" Annotation="0"/>
+  <Cards CatID="143011" Quantity="2" Sideboard="false" Name="Meltstrider's Resolve" Annotation="0"/>
+  <Cards CatID="147991" Quantity="3" Sideboard="false" Name="Escape Tunnel" Annotation="0"/>
+  <Cards CatID="116706" Quantity="2" Sideboard="false" Name="Royal Treatment" Annotation="0"/>
+  <Cards CatID="141341" Quantity="4" Sideboard="false" Name="Sazh's Chocobo" Annotation="0"/>
+  <Cards CatID="145024" Quantity="4" Sideboard="false" Name="Ba Sing Se" Annotation="0"/>
+  <Cards CatID="22937" Quantity="4" Sideboard="false" Name="Llanowar Elves" Annotation="0"/>
+  <Cards CatID="142997" Quantity="4" Sideboard="false" Name="Icetill Explorer" Annotation="0"/>
+  <Cards CatID="145154" Quantity="4" Sideboard="false" Name="Badgermole Cub" Annotation="0"/>
+  <Cards CatID="81719" Quantity="4" Sideboard="false" Name="Fabled Passage" Annotation="0"/>
+  <Cards CatID="79632" Quantity="14" Sideboard="false" Name="Forest" Annotation="0"/>
+  <Cards CatID="129627" Quantity="1" Sideboard="true" Name="Scrapshooter" Annotation="0"/>
+  <Cards CatID="143011" Quantity="2" Sideboard="true" Name="Meltstrider's Resolve" Annotation="0"/>
+  <Cards CatID="139685" Quantity="1" Sideboard="true" Name="Surrak, Elusive Hunter" Annotation="0"/>
+  <Cards CatID="129617" Quantity="2" Sideboard="true" Name="Pawpatch Formation" Annotation="0"/>
+  <Cards CatID="79598" Quantity="3" Sideboard="true" Name="Soul-Guide Lantern" Annotation="0"/>
+  <Cards CatID="133208" Quantity="4" Sideboard="true" Name="Mossborn Hydra" Annotation="0"/>
+  <Cards CatID="142973" Quantity="2" Sideboard="true" Name="Eumidian Terrabotanist" Annotation="0"/>
+</Deck>

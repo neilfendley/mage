@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Deck xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <NetDeckID>0</NetDeckID>
+  <PreconstructedDeckID>0</PreconstructedDeckID>
+  <Cards CatID="79626" Quantity="6" Sideboard="false" Name="Island" Annotation="0"/>
+  <Cards CatID="129341" Quantity="3" Sideboard="false" Name="Eddymurk Crab" Annotation="0"/>
+  <Cards CatID="136663" Quantity="1" Sideboard="false" Name="Willowrush Verge" Annotation="0"/>
+  <Cards CatID="67586" Quantity="4" Sideboard="false" Name="Opt" Annotation="0"/>
+  <Cards CatID="116040" Quantity="3" Sideboard="false" Name="Elusive Otter" Annotation="0"/>
+  <Cards CatID="129395" Quantity="4" Sideboard="false" Name="Stormchaser's Talent" Annotation="0"/>
+  <Cards CatID="57149" Quantity="4" Sideboard="false" Name="Burst Lightning" Annotation="0"/>
+  <Cards CatID="144570" Quantity="4" Sideboard="false" Name="Boomerang Basics" Annotation="0"/>
+  <Cards CatID="130591" Quantity="1" Sideboard="false" Name="Roaring Furnace/Steaming Sauna" Annotation="0"/>
+  <Cards CatID="139219" Quantity="1" Sideboard="false" Name="Wild Ride" Annotation="0"/>
+  <Cards CatID="144288" Quantity="2" Sideboard="false" Name="Multiversal Passage" Annotation="0"/>
+  <Cards CatID="146699" Quantity="1" Sideboard="false" Name="Sear" Annotation="0"/>
+  <Cards CatID="129349" Quantity="2" Sideboard="false" Name="Into the Flood Maw" Annotation="0"/>
+  <Cards CatID="136257" Quantity="4" Sideboard="false" Name="Stock Up" Annotation="0"/>
+  <Cards CatID="136861" Quantity="4" Sideboard="false" Name="Riverpyre Verge" Annotation="0"/>
+  <Cards CatID="69927" Quantity="4" Sideboard="false" Name="Steam Vents" Annotation="0"/>
+  <Cards CatID="61851" Quantity="4" Sideboard="false" Name="Spirebluff Canal" Annotation="0"/>
+  <Cards CatID="116075" Quantity="4" Sideboard="false" Name="Sleight of Hand" Annotation="0"/>
+  <Cards CatID="124203" Quantity="4" Sideboard="false" Name="Slickshot Show-Off" Annotation="0"/>
+  <Cards CatID="142705" Quantity="1" Sideboard="true" Name="Annul" Annotation="0"/>
+  <Cards CatID="116079" Quantity="1" Sideboard="true" Name="Torch the Tower" Annotation="0"/>
+  <Cards CatID="130251" Quantity="2" Sideboard="true" Name="Get Out" Annotation="0"/>
+  <Cards CatID="146699" Quantity="1" Sideboard="true" Name="Sear" Annotation="0"/>
+  <Cards CatID="130591" Quantity="1" Sideboard="true" Name="Roaring Furnace/Steaming Sauna" Annotation="0"/>
+  <Cards CatID="136251" Quantity="2" Sideboard="true" Name="Spell Pierce" Annotation="0"/>
+  <Cards CatID="129705" Quantity="2" Sideboard="true" Name="Ral, Crackling Wit" Annotation="0"/>
+  <Cards CatID="79598" Quantity="2" Sideboard="true" Name="Soul-Guide Lantern" Annotation="0"/>
+  <Cards CatID="136507" Quantity="1" Sideboard="true" Name="Broadside Barrage" Annotation="0"/>
+  <Cards CatID="141209" Quantity="2" Sideboard="true" Name="Fire Magic" Annotation="0"/>
+</Deck>

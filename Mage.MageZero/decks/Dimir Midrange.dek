@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Deck xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <NetDeckID>0</NetDeckID>
+  <PreconstructedDeckID>0</PreconstructedDeckID>
+  <Cards CatID="79628" Quantity="3" Sideboard="false" Name="Swamp" Annotation="0"/>
+  <Cards CatID="130249" Quantity="4" Sideboard="false" Name="Floodpits Drowner" Annotation="0"/>
+  <Cards CatID="130571" Quantity="4" Sideboard="false" Name="Kaito, Bane of Nightmares" Annotation="0"/>
+  <Cards CatID="145142" Quantity="1" Sideboard="false" Name="Wan Shi Tong, Librarian" Annotation="0"/>
+  <Cards CatID="124033" Quantity="1" Sideboard="false" Name="Phantom Interference" Annotation="0"/>
+  <Cards CatID="141111" Quantity="2" Sideboard="false" Name="Cecil, Dark Knight" Annotation="0"/>
+  <Cards CatID="117710" Quantity="2" Sideboard="false" Name="Restless Reef" Annotation="0"/>
+  <Cards CatID="129751" Quantity="1" Sideboard="false" Name="Fountainport" Annotation="0"/>
+  <Cards CatID="79626" Quantity="4" Sideboard="false" Name="Island" Annotation="0"/>
+  <Cards CatID="144288" Quantity="4" Sideboard="false" Name="Multiversal Passage" Annotation="0"/>
+  <Cards CatID="130233" Quantity="3" Sideboard="false" Name="Enduring Curiosity" Annotation="0"/>
+  <Cards CatID="117986" Quantity="2" Sideboard="false" Name="Bitter Triumph" Annotation="0"/>
+  <Cards CatID="124123" Quantity="2" Sideboard="false" Name="Shoot the Sheriff" Annotation="0"/>
+  <Cards CatID="146621" Quantity="3" Sideboard="false" Name="Requiting Hex" Annotation="0"/>
+  <Cards CatID="117956" Quantity="4" Sideboard="false" Name="Spyglass Siren" Annotation="0"/>
+  <Cards CatID="117678" Quantity="3" Sideboard="false" Name="Tishana's Tidebinder" Annotation="0"/>
+  <Cards CatID="143262" Quantity="4" Sideboard="false" Name="Watery Grave" Annotation="0"/>
+  <Cards CatID="132982" Quantity="2" Sideboard="false" Name="Soulstone Sanctuary" Annotation="0"/>
+  <Cards CatID="142757" Quantity="2" Sideboard="false" Name="Quantum Riddler" Annotation="0"/>
+  <Cards CatID="118008" Quantity="4" Sideboard="false" Name="Deep-Cavern Bat" Annotation="0"/>
+  <Cards CatID="130651" Quantity="4" Sideboard="false" Name="Gloomlake Verge" Annotation="0"/>
+  <Cards CatID="80191" Quantity="1" Sideboard="false" Name="Heartless Act" Annotation="0"/>
+  <Cards CatID="139141" Quantity="1" Sideboard="true" Name="Strategic Betrayal" Annotation="0"/>
+  <Cards CatID="80108" Quantity="1" Sideboard="true" Name="Essence Scatter" Annotation="0"/>
+  <Cards CatID="146621" Quantity="1" Sideboard="true" Name="Requiting Hex" Annotation="0"/>
+  <Cards CatID="136307" Quantity="1" Sideboard="true" Name="Intimidation Tactics" Annotation="0"/>
+  <Cards CatID="130627" Quantity="2" Sideboard="true" Name="Ghost Vacuum" Annotation="0"/>
+  <Cards CatID="144634" Quantity="1" Sideboard="true" Name="The Unagi of Kyoshi Island" Annotation="0"/>
+  <Cards CatID="49182" Quantity="2" Sideboard="true" Name="Duress" Annotation="0"/>
+  <Cards CatID="142705" Quantity="2" Sideboard="true" Name="Annul" Annotation="0"/>
+  <Cards CatID="144668" Quantity="2" Sideboard="true" Name="Day of Black Sun" Annotation="0"/>
+  <Cards CatID="79598" Quantity="1" Sideboard="true" Name="Soul-Guide Lantern" Annotation="0"/>
+  <Cards CatID="147717" Quantity="1" Sideboard="true" Name="Negate" Annotation="0"/>
+</Deck>
