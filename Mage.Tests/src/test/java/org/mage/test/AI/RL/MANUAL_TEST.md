@@ -38,36 +38,40 @@
 ## After the game ends
 13. Check the server logs for:
     - `"RL training data: wrote N states for ... to rl_training_data/..."` -- data persisted
-14. Check the `Mage.Server/rl_training_data/` directory for a `.bin` file
+14. Check the `Mage.Server/rl_training_data/` directory for a `.hdf5` file
 15. Verify the file is non-empty and its name contains your player name
 
 ## Validate the output file
-You can inspect the binary file with a simple Python script:
+You can inspect the HDF5 file with a simple Python script (requires `h5py`):
 ```python
-import struct, sys
+import h5py, sys
 
-with open(sys.argv[1], 'rb') as f:
-    count = struct.unpack('>i', f.read(4))[0]
-    print(f"Records: {count}")
-    for i in range(min(count, 3)):  # show first 3
-        num_indices = struct.unpack('>i', f.read(4))[0]
-        indices = [struct.unpack('>i', f.read(4))[0] for _ in range(num_indices)]
-        actions = [struct.unpack('>d', f.read(8))[0] for _ in range(128)]
-        result_label = struct.unpack('>d', f.read(8))[0]
-        state_score = struct.unpack('>d', f.read(8))[0]
-        is_player = struct.unpack('>?', f.read(1))[0]
-        action_type = struct.unpack('>i', f.read(4))[0]
-        action_idx = next((j for j, v in enumerate(actions) if v > 0), -1)
-        print(f"  [{i}] features={num_indices}, action_idx={action_idx}, "
+with h5py.File(sys.argv[1], 'r') as f:
+    indices = f['indices'][:]
+    offsets = f['offsets'][:]
+    rows = f['row'][:]
+    num_records = rows.shape[0]
+    print(f"Records: {num_records}")
+    print(f"Total sparse features: {len(indices)}")
+    for i in range(min(num_records, 3)):  # show first 3
+        start, end = int(offsets[i]), int(offsets[i + 1])
+        num_features = end - start
+        action_idx = next((j for j in range(128) if rows[i, j] > 0), -1)
+        result_label = rows[i, 128]
+        state_score = rows[i, 129]
+        is_player = rows[i, 130]
+        action_type = int(rows[i, 131])
+        print(f"  [{i}] features={num_features}, action_idx={action_idx}, "
               f"result={result_label:.3f}, score={state_score:.3f}, "
-              f"isPlayer={is_player}, type={action_type}")
+              f"isPlayer={is_player:.0f}, type={action_type}")
 ```
 
 ## Expected results
-- The `.bin` file should contain one record per decision point in the game
+- The `.hdf5` file should contain one record per decision point in the game
 - `action_idx=0` entries are pass actions
 - `result_label` values should be positive if you won, negative if you lost
 - Later states should have `result_label` closer to +1.0 or -1.0 (TD-discount effect)
+- The file can be loaded directly by the MageZero Python training pipeline (`dataset.py`)
 
 ## Troubleshooting
 - **Port 17171 already in use**: Kill the existing process with `lsof -ti :17171 | xargs kill`
