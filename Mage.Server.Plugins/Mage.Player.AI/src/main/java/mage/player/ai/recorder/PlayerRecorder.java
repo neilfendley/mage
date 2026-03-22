@@ -45,6 +45,10 @@ public class PlayerRecorder implements GameRecorder {
     private void addState(Set<Integer> stateVector, int[] actionVec,
                           ActionEncoder.ActionType actionType, UUID playerId) {
         stateEncoder.addLabeledState(stateVector, actionVec, 0.0, actionType, isPlayer(playerId));
+        int count = stateEncoder.labeledStates.size();
+        if (count <= 5 || count % 10 == 0) {
+            logger.info("RL recorded " + actionType + " decision (total: " + count + " states)");
+        }
     }
 
     @Override
