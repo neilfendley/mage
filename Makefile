@@ -31,3 +31,9 @@ package:
 .PHONY: install
 install: clean build package
 
+.PHONY: run-krenko
+run-krenko:
+	MAVEN_OPTS="-Xmx4g" mvn -pl Mage.Tests exec:java \
+		-Dexec.mainClass="org.mage.test.AI.KrenkoMain" \
+		-Dexec.classpathScope=test
+

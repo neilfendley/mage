@@ -61,6 +61,7 @@ Utils/*implemented.txt
 
 # build tools
 mage-bundle.zip
+dev.argfile
 .env
 *.ser
 *.bin
