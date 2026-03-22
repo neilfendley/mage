@@ -1,6 +1,7 @@
 package mage.collectors;
 
 import mage.collectors.services.PrintGameLogsDataCollector;
+import mage.collectors.services.RLTrainingDataCollector;
 import mage.collectors.services.SaveGameHistoryDataCollector;
 import mage.game.Game;
 import mage.game.Table;
@@ -52,6 +53,7 @@ final public class DataCollectorServices implements DataCollector {
         // fill all possible services
         getInstance().allServices.add(new PrintGameLogsDataCollector());
         getInstance().allServices.add(new SaveGameHistoryDataCollector());
+        getInstance().allServices.add(new RLTrainingDataCollector());
         logger.info(String.format("Data collectors: found %d services", getInstance().allServices.size()));
 
         // enable only needed

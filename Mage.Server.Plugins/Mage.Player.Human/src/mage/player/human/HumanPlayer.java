@@ -145,6 +145,7 @@ public class HumanPlayer extends PlayerImpl {
         this.recorder = recorder;
     }
 
+    @Override
     public GameRecorder getRecorder() {
         return recorder;
     }
