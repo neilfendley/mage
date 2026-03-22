@@ -21,8 +21,18 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
 
     public static final String SERVICE_CODE = "rlTrainingData";
     private static final Logger logger = Logger.getLogger(RLTrainingDataCollector.class);
-    private static final String OUTPUT_DIR = "rl_training_data";
+    private static final String DEFAULT_OUTPUT_DIR = "rl_training_data";
     private static final double TD_DISCOUNT = 0.95;
+
+    private final String outputDir;
+
+    public RLTrainingDataCollector() {
+        this(DEFAULT_OUTPUT_DIR);
+    }
+
+    public RLTrainingDataCollector(String outputDir) {
+        this.outputDir = outputDir;
+    }
 
     @Override
     public String getServiceCode() {
@@ -31,7 +41,7 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
 
     @Override
     public String getInitInfo() {
-        return "output dir: " + OUTPUT_DIR;
+        return "output dir: " + outputDir;
     }
 
     @Override
@@ -43,7 +53,7 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
             }
 
             try {
-                Path dir = Paths.get(OUTPUT_DIR);
+                Path dir = Paths.get(outputDir);
                 Files.createDirectories(dir);
 
                 String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
