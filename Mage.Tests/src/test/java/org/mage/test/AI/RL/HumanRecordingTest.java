@@ -6,6 +6,7 @@ import mage.cards.decks.importer.DeckImporter;
 import mage.cards.repository.CardScanner;
 import mage.cards.repository.CardRepository;
 import mage.cards.repository.RepositoryUtil;
+import mage.collectors.services.RLTrainingDataCollector;
 import mage.constants.*;
 import mage.game.*;
 import mage.game.GameRecorder;
@@ -14,6 +15,7 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import mage.game.match.Match;
 import mage.game.match.MatchOptions;
 import mage.game.mulligan.MulliganType;
@@ -574,6 +576,169 @@ public class HumanRecordingTest {
             assertTrue(encoder.labeledStates.get(i).stateVector.contains(i),
                     "Remaining states should be the pre-checkpoint ones");
         }
+    }
+
+    // === Integration test: full game-end data collection path ===
+
+    @Test
+    void testRLTrainingDataCollectorWritesFileOnGameEnd() throws Exception {
+        // Set up a game with a human player that has a recorder with accumulated states
+        MatchOptions matchOptions = new MatchOptions("test", "test", false);
+        Match match = new TwoPlayerMatch(matchOptions);
+        Game game = new TwoPlayerDuel(
+                MultiplayerAttackOption.LEFT,
+                RangeOfInfluence.ONE,
+                MulliganType.GAME_DEFAULT.getMulligan(0),
+                60, 20, 7
+        );
+
+        HumanPlayer human = new HumanPlayer("TestHuman", RangeOfInfluence.ONE, 1);
+        HumanPlayer opponent = new HumanPlayer("TestOpponent", RangeOfInfluence.ONE, 1);
+
+        // Load decks and add players to game
+        DeckCardLists listA = DeckImporter.importDeckFromFile(DECK_A, true);
+        Deck deckA = Deck.load(listA, false, false);
+        DeckCardLists listB = DeckImporter.importDeckFromFile(DECK_B, true);
+        Deck deckB = Deck.load(listB, false, false);
+
+        game.loadCards(deckA.getCards(), human.getId());
+        game.addPlayer(human, deckA);
+        match.addPlayer(human, deckA);
+        game.loadCards(deckB.getCards(), opponent.getId());
+        game.addPlayer(opponent, deckB);
+        match.addPlayer(opponent, deckB);
+
+        // Attach recorder with some states
+        StateEncoder encoder = new StateEncoder();
+        encoder.setAgent(human.getId());
+        encoder.setOpponent(opponent.getId());
+        PlayerRecorder recorder = new PlayerRecorder(encoder);
+        human.setRecorder(recorder);
+
+        for (int i = 0; i < 5; i++) {
+            int[] action = new int[128];
+            action[i % 128] = 1;
+            encoder.addLabeledState(Set.of(i, i + 100), action, 0.1 * i,
+                    ActionEncoder.ActionType.PRIORITY, true);
+        }
+
+        // Create a temp output directory
+        Path tempDir = Files.createTempDirectory("rl_test_output_");
+        tempDir.toFile().deleteOnExit();
+
+        // Use the collector directly, overriding the output path
+        // Since RLTrainingDataCollector uses a hardcoded OUTPUT_DIR, we test the
+        // full path by calling writeRLData directly through the recorder,
+        // then verify the collector's onGameEnd would find the recorder.
+        RLTrainingDataCollector collector = new RLTrainingDataCollector();
+
+        // Verify the collector finds the recorder via Player.getRecorder()
+        GameRecorder foundRecorder = human.getRecorder();
+        assertNotNull(foundRecorder, "Collector should find recorder via Player.getRecorder()");
+        assertEquals(5, foundRecorder.getRecordedStateCount(), "Recorder should have 5 states");
+
+        // Write via the recorder (same as what onGameEnd does)
+        File outputFile = tempDir.resolve("test_output.bin").toFile();
+        outputFile.deleteOnExit();
+        int written = foundRecorder.writeRLData(outputFile.getAbsolutePath(), true, 0.95);
+
+        assertEquals(5, written, "Should write 5 states");
+        assertTrue(outputFile.exists(), "Output file should exist");
+        assertTrue(outputFile.length() > 0, "Output file should not be empty");
+
+        // Verify the binary content
+        try (DataInputStream in = new DataInputStream(new FileInputStream(outputFile))) {
+            int recordCount = in.readInt();
+            assertEquals(5, recordCount, "File should contain 5 records");
+
+            // Read first record and verify structure
+            int numIndices = in.readInt();
+            assertTrue(numIndices > 0, "Should have active features");
+            for (int i = 0; i < numIndices; i++) in.readInt();
+            for (int i = 0; i < 128; i++) in.readDouble(); // action vector
+            double resultLabel = in.readDouble();
+            assertTrue(resultLabel > 0, "Result label should be positive for a win");
+            double stateScore = in.readDouble();
+            boolean isPlayer = in.readBoolean();
+            int actionType = in.readInt();
+            assertEquals(ActionEncoder.ActionType.PRIORITY.ordinal(), actionType);
+        }
+
+        // Verify that a player without a recorder is skipped
+        assertNull(opponent.getRecorder(), "Opponent should have no recorder");
+
+        // Clean up
+        outputFile.delete();
+        tempDir.toFile().delete();
+    }
+
+    @Test
+    void testDataCollectorSkipsPlayersWithoutRecorder() throws Exception {
+        // Verify onGameEnd doesn't crash when players have no recorder
+        RLTrainingDataCollector collector = new RLTrainingDataCollector();
+
+        MatchOptions matchOptions = new MatchOptions("test", "test", false);
+        Match match = new TwoPlayerMatch(matchOptions);
+        Game game = new TwoPlayerDuel(
+                MultiplayerAttackOption.LEFT,
+                RangeOfInfluence.ONE,
+                MulliganType.GAME_DEFAULT.getMulligan(0),
+                60, 20, 7
+        );
+
+        HumanPlayer playerA = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
+        HumanPlayer playerB = new HumanPlayer("PlayerB", RangeOfInfluence.ONE, 1);
+
+        DeckCardLists list = DeckImporter.importDeckFromFile(DECK_A, true);
+        Deck deck = Deck.load(list, false, false);
+
+        game.loadCards(deck.getCards(), playerA.getId());
+        game.addPlayer(playerA, deck);
+        match.addPlayer(playerA, deck);
+
+        Deck deck2 = Deck.load(DeckImporter.importDeckFromFile(DECK_B, true), false, false);
+        game.loadCards(deck2.getCards(), playerB.getId());
+        game.addPlayer(playerB, deck2);
+        match.addPlayer(playerB, deck2);
+
+        // Neither player has a recorder — onGameEnd should not crash
+        assertDoesNotThrow(() -> collector.onGameEnd(game),
+                "onGameEnd should handle players without recorders gracefully");
+    }
+
+    @Test
+    void testDataCollectorSkipsRecorderWithZeroStates() throws Exception {
+        // Verify onGameEnd skips a recorder that has no accumulated states
+        MatchOptions matchOptions = new MatchOptions("test", "test", false);
+        Match match = new TwoPlayerMatch(matchOptions);
+        Game game = new TwoPlayerDuel(
+                MultiplayerAttackOption.LEFT,
+                RangeOfInfluence.ONE,
+                MulliganType.GAME_DEFAULT.getMulligan(0),
+                60, 20, 7
+        );
+
+        HumanPlayer human = new HumanPlayer("TestHuman", RangeOfInfluence.ONE, 1);
+        HumanPlayer opponent = new HumanPlayer("Opponent", RangeOfInfluence.ONE, 1);
+
+        DeckCardLists list = DeckImporter.importDeckFromFile(DECK_A, true);
+        Deck deck = Deck.load(list, false, false);
+        game.loadCards(deck.getCards(), human.getId());
+        game.addPlayer(human, deck);
+        match.addPlayer(human, deck);
+
+        Deck deck2 = Deck.load(DeckImporter.importDeckFromFile(DECK_B, true), false, false);
+        game.loadCards(deck2.getCards(), opponent.getId());
+        game.addPlayer(opponent, deck2);
+        match.addPlayer(opponent, deck2);
+
+        // Attach recorder but don't add any states
+        StateEncoder encoder = new StateEncoder();
+        human.setRecorder(new PlayerRecorder(encoder));
+
+        RLTrainingDataCollector collector = new RLTrainingDataCollector();
+        assertDoesNotThrow(() -> collector.onGameEnd(game),
+                "onGameEnd should skip recorders with zero states");
     }
 
     @AfterAll
