@@ -43,11 +43,17 @@ import mage.target.TargetCard;
 import mage.target.common.TargetAttackingCreature;
 import mage.target.common.TargetDefender;
 import mage.target.targetpointer.TargetPointer;
+import mage.player.ai.encoder.ActionEncoder;
+import mage.player.ai.encoder.LabeledState;
+import mage.player.ai.encoder.StateEncoder;
 import mage.util.*;
 import mage.utils.SystemUtil;
 import org.apache.log4j.Logger;
 
 import java.awt.*;
+import java.io.DataOutputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.*;
@@ -122,6 +128,12 @@ public class HumanPlayer extends PlayerImpl {
 
     protected boolean holdingPriority;
 
+    // RL training data recording
+    private transient StateEncoder stateEncoder;
+    private transient ActionEncoder actionEncoder;
+    private transient boolean rlRecordingEnabled = false;
+    private transient int rlCheckpointSize = -1; // labeledStates.size() at copy time, for undo trimming
+
     protected ConcurrentLinkedQueue<PlayerResponse> actionQueue = new ConcurrentLinkedQueue<>();
     protected ConcurrentLinkedQueue<PlayerResponse> actionQueueSaved = new ConcurrentLinkedQueue<>();
     protected int actionIterations = 0;
@@ -134,6 +146,124 @@ public class HumanPlayer extends PlayerImpl {
         this.human = true;
         this.response = new PlayerResponse();
         initReplacementDialog();
+    }
+
+    public void enableRLRecording(StateEncoder encoder) {
+        this.stateEncoder = encoder;
+        this.actionEncoder = new ActionEncoder();
+        this.rlRecordingEnabled = true;
+    }
+
+    public StateEncoder getStateEncoder() {
+        return stateEncoder;
+    }
+
+    public boolean isRlRecordingEnabled() {
+        return rlRecordingEnabled;
+    }
+
+    /**
+     * Applies TD-discount to accumulated states and writes training data to a binary file.
+     * Call after the game ends.
+     *
+     * @param outputPath  path to write the binary training data
+     * @param playerWon   whether this player won
+     * @param tdDiscount  temporal difference discount factor (e.g. 0.95)
+     * @return number of states written, or -1 on error
+     */
+    public int writeRLData(String outputPath, boolean playerWon, double tdDiscount) {
+        if (!rlRecordingEnabled || stateEncoder.labeledStates.isEmpty()) {
+            return 0;
+        }
+
+        // Apply TD-discount (same logic as ParallelDataGenerator.generateLabeledStatesForGame)
+        List<LabeledState> states = stateEncoder.labeledStates;
+        int N = states.size();
+        double discountedFuture = playerWon ? 1.0 : -1.0;
+        for (int i = N - 1; i >= 0; i--) {
+            discountedFuture = (tdDiscount * discountedFuture)
+                    + (states.get(i).stateScore * (1 - tdDiscount));
+            states.get(i).resultLabel = discountedFuture;
+        }
+
+        // Write binary format (includes all metadata matching LabeledStateWriter's schema)
+        try (DataOutputStream out = new DataOutputStream(new FileOutputStream(outputPath))) {
+            out.writeInt(N); // record count
+            for (LabeledState state : states) {
+                // sparse state vector
+                out.writeInt(state.stateVector.size());
+                for (int index : state.stateVector) {
+                    out.writeInt(index);
+                }
+                // action distribution
+                for (double p : state.actionVector) {
+                    out.writeDouble(p);
+                }
+                // full metadata (matches LabeledStateWriter row format)
+                out.writeDouble(state.resultLabel);
+                out.writeDouble(state.stateScore);
+                out.writeBoolean(state.isPlayer);
+                out.writeInt(state.actionType.ordinal());
+            }
+            logger.info("Wrote " + N + " RL training states to " + outputPath);
+            return N;
+        } catch (IOException e) {
+            logger.error("Failed to write RL training data: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    /** Captures the current game state for RL recording. Returns null if recording is disabled or on error. */
+    private Set<Integer> capturePreDecisionState(Game game) {
+        if (!rlRecordingEnabled) {
+            return null;
+        }
+        try {
+            return stateEncoder.processState(game, playerId);
+        } catch (Exception e) {
+            logger.warn("Failed to capture pre-decision RL state: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** Records a labeled state with the given action vector and type. */
+    private void recordRLState(Set<Integer> stateVector, int[] actionVec, ActionEncoder.ActionType actionType) {
+        stateEncoder.addLabeledState(stateVector, actionVec, 0.0,
+                actionType, stateEncoder.getMyPlayerId().equals(playerId));
+    }
+
+    /** Records target selections (and Stop Choosing if applicable) against a pre-captured state. */
+    private void recordTargetSelections(Set<Integer> preDecisionState, Target target,
+                                        UUID abilityControllerId, Ability source, Game game, Cards cards) {
+        try {
+            for (UUID targetId : target.getTargets()) {
+                int[] actionVec = new int[128];
+                String targetName = game.getObject(targetId) != null
+                        ? game.getObject(targetId).getName() : targetId.toString();
+                int idx = actionEncoder.getTargetIndex(targetName);
+                actionVec[idx] = 1;
+                recordRLState(preDecisionState, actionVec, ActionEncoder.ActionType.CHOOSE_TARGET);
+            }
+            boolean choiceCompleted = cards != null
+                    ? target.isChoiceCompleted(abilityControllerId, source, game, cards)
+                    : target.isChoiceCompleted(abilityControllerId, source, game, null);
+            if (!choiceCompleted) {
+                int[] stopVec = new int[128];
+                stopVec[0] = 1; // index 0 = "Stop Choosing" in ActionEncoder.targetMap
+                recordRLState(preDecisionState, stopVec, ActionEncoder.ActionType.CHOOSE_TARGET);
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to record RL state for chooseTarget: " + e.getMessage());
+        }
+    }
+
+    private void recordPassAction(Game game) {
+        Set<Integer> stateVector = capturePreDecisionState(game);
+        if (stateVector != null) {
+            int[] actionVec = new int[128];
+            actionVec[0] = 1; // index 0 = Pass in ActionEncoder
+            recordRLState(stateVector, actionVec, ActionEncoder.ActionType.PRIORITY);
+        }
     }
 
     private void initReplacementDialog() {
@@ -160,6 +290,16 @@ public class HumanPlayer extends PlayerImpl {
     public HumanPlayer(final HumanPlayer player) {
         super(player);
         this.response = player.response;
+
+        // Preserve RL recording state across copies/checkpoints.
+        // Shared encoder reference is intentional so states accumulate in one list.
+        // Checkpoint size is saved so undo can trim states added after the checkpoint.
+        this.stateEncoder = player.stateEncoder;
+        this.actionEncoder = player.actionEncoder;
+        this.rlRecordingEnabled = player.rlRecordingEnabled;
+        if (rlRecordingEnabled && stateEncoder != null) {
+            this.rlCheckpointSize = stateEncoder.labeledStates.size();
+        }
 
         this.replacementEffectChoice = player.replacementEffectChoice;
         this.autoSelectReplacementEffects.addAll(player.autoSelectReplacementEffects);
@@ -430,8 +570,14 @@ public class HumanPlayer extends PlayerImpl {
     }
     @Override
     public boolean chooseUse(Outcome outcome, String message, String secondMessage, String trueText, String falseText, Ability source, Game game) {
+        Set<Integer> preDecisionState = capturePreDecisionState(game);
         boolean out = chooseUseHelper(outcome, message, secondMessage, trueText, falseText, source, game);
         getPlayerHistory().useSequence.add(out);
+        if (preDecisionState != null) {
+            int[] actionVec = new int[128];
+            actionVec[out ? 1 : 0] = 1; // binary: 0=no, 1=yes
+            recordRLState(preDecisionState, actionVec, ActionEncoder.ActionType.CHOOSE_USE);
+        }
         return out;
     }
     private boolean chooseUseHelper(Outcome outcome, String message, String secondMessage, String trueText, String falseText, Ability source, Game game) {
@@ -632,8 +778,15 @@ public class HumanPlayer extends PlayerImpl {
 
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
+        Set<Integer> preDecisionState = capturePreDecisionState(game);
         boolean out = chooseHelper(outcome, choice, game);
         getPlayerHistory().choiceSequence.add(choice.getChoice());
+        if (preDecisionState != null && choice.getChoice() != null) {
+            int[] actionVec = new int[128];
+            int idx = (Math.abs(choice.getChoice().hashCode()) % 127) + 1;
+            actionVec[idx] = 1;
+            recordRLState(preDecisionState, actionVec, ActionEncoder.ActionType.MAKE_CHOICE);
+        }
         return out;
     }
     private boolean chooseHelper(Outcome outcome, Choice choice, Game game) {
@@ -789,9 +942,16 @@ public class HumanPlayer extends PlayerImpl {
         boolean out;
         UUID abilityControllerId = target.getAffectedAbilityControllerId(this.getId());
         if(target.possibleTargets(abilityControllerId, source, game).size() > 1) {
+            Set<Integer> preDecisionState = capturePreDecisionState(game);
             out = chooseTargetHelper(outcome, target, source, game);
             getPlayerHistory().targetSequence.addAll(target.getTargets());
             if(!target.isChoiceCompleted(abilityControllerId, source, game, null)) getPlayerHistory().targetSequence.add(STOP_CHOOSING);
+            // Note: for multi-target selections, the human UI resolves all targets in one
+            // blocking call, so we can't capture intermediate states between picks the way
+            // the MCTS bot does. Each target is recorded against the pre-decision state.
+            if (preDecisionState != null) {
+                recordTargetSelections(preDecisionState, target, abilityControllerId, source, game, null);
+            }
         } else {
             out = chooseTargetHelper(outcome, target, source, game);
         }
@@ -1030,9 +1190,13 @@ public class HumanPlayer extends PlayerImpl {
         boolean out;
         UUID abilityControllerId = target.getAffectedAbilityControllerId(this.getId());
         if(target.possibleTargets(abilityControllerId, source, game, cards).size() > 1) {
+            Set<Integer> preDecisionState = capturePreDecisionState(game);
             out = chooseTargetHelper(outcome, cards, target, source, game);
             getPlayerHistory().targetSequence.addAll(target.getTargets());
             if(!target.isChoiceCompleted(abilityControllerId, source, game, cards)) getPlayerHistory().targetSequence.add(STOP_CHOOSING);
+            if (preDecisionState != null) {
+                recordTargetSelections(preDecisionState, target, abilityControllerId, source, game, cards);
+            }
         } else {
             out = chooseTargetHelper(outcome, cards, target, source, game);
         }
@@ -1192,6 +1356,13 @@ public class HumanPlayer extends PlayerImpl {
 
     @Override
     public boolean priority(Game game) {
+        // If this player was restored from a checkpoint (undo), trim any states
+        // that were recorded after the checkpoint was taken.
+        if (rlCheckpointSize >= 0 && rlRecordingEnabled && stateEncoder != null
+                && stateEncoder.labeledStates.size() > rlCheckpointSize) {
+            stateEncoder.labeledStates.subList(rlCheckpointSize, stateEncoder.labeledStates.size()).clear();
+            rlCheckpointSize = -1;
+        }
         passed = false;
         // TODO: fix problems with turn under out control:
         // TODO: change pass and other states like passedUntilStackResolved for controlling player, not for "this"
@@ -1202,6 +1373,7 @@ public class HumanPlayer extends PlayerImpl {
         //for MCTS opponent
         List<ActivatedAbility> playableAbilities = getPlayable(game, true).stream().filter(a -> !(a instanceof ManaAbility)).collect(Collectors.toList());
         if(playableAbilities.isEmpty() && !game.isCheckPoint(playerId)) {//just pass when only option
+            recordPassAction(game);
             pass(game);
             return false;
         }
@@ -1381,6 +1553,7 @@ public class HumanPlayer extends PlayerImpl {
                 if (response.getBoolean() != null
                         || response.getInteger() != null) {
                     if (!activatingMacro && passWithManaPoolCheck(game)) {
+                        recordPassAction(game);
                         return false;
                     } else {
                         if (activatingMacro) {
@@ -2318,6 +2491,14 @@ public class HumanPlayer extends PlayerImpl {
     @Override
     public boolean activateAbility(ActivatedAbility ability, Game game) {
         getManaPool().setStock(); // needed for the "mana already in the pool has to be used manually" option
+        if (rlRecordingEnabled && !ability.isManaAbility()) {
+            Set<Integer> stateVector = capturePreDecisionState(game);
+            if (stateVector != null) {
+                int[] actionVec = new int[128];
+                actionVec[actionEncoder.getActionIndex(ability, false)] = 1;
+                recordRLState(stateVector, actionVec, ActionEncoder.ActionType.PRIORITY);
+            }
+        }
         return super.activateAbility(ability, game);
     }
 

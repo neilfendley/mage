@@ -7,6 +7,7 @@ import mage.game.Game;
 import mage.player.ai.encoder.ActionEncoder;
 import mage.player.ai.encoder.StateEncoder;
 import mage.player.ai.score.GameStateEvaluator2;
+import mage.player.human.HumanPlayer;
 import mage.players.Player;
 import mage.players.PlayerScript;
 import org.apache.log4j.Logger;
@@ -68,6 +69,15 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
         } catch (Exception e) {
             logger.warn("Failed to establish connection to network model; falling back to offline mode");
             offlineMode = true;
+        }
+        // enable RL recording for human opponents
+        if (opponent.isHuman() && opponent.getRealPlayer() instanceof HumanPlayer) {
+            HumanPlayer humanOpponent = (HumanPlayer) opponent.getRealPlayer();
+            StateEncoder humanEncoder = new StateEncoder();
+            humanEncoder.setAgent(opponent.getId());
+            humanEncoder.setOpponent(getId());
+            humanOpponent.enableRLRecording(humanEncoder);
+            logger.info("RL recording enabled for human opponent: " + opponent.getName());
         }
     }
     @Override
