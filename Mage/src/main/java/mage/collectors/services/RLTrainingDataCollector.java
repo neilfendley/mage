@@ -5,12 +5,12 @@ import mage.game.GameRecorder;
 import mage.players.Player;
 import org.apache.log4j.Logger;
 
-import java.util.UUID;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * Data collector that writes RL training data to disk when a game ends.
@@ -52,6 +52,11 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
             Class.forName("mage.player.ai.recorder.PlayerRecorder");
         } catch (ClassNotFoundException e) {
             logger.warn("PlayerRecorder class not found — RL recording will not be available");
+            return;
+        }
+
+        // Only supported for two-player games (StateEncoder models a single opponent)
+        if (game.getPlayers().size() != 2) {
             return;
         }
 

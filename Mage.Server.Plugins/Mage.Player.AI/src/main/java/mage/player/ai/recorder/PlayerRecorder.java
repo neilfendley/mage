@@ -7,11 +7,10 @@ import mage.game.Game;
 import mage.game.GameRecorder;
 import mage.player.ai.encoder.ActionEncoder;
 import mage.player.ai.encoder.LabeledState;
+import mage.player.ai.encoder.LabeledStateWriter;
 import mage.player.ai.encoder.StateEncoder;
 import mage.target.Target;
 import org.apache.log4j.Logger;
-
-import mage.player.ai.encoder.LabeledStateWriter;
 
 import java.io.IOException;
 import java.util.List;
