@@ -3,14 +3,12 @@
 ## Prerequisites
 1. Build the project: `mvn clean install -DskipTests`
 2. No neural network inference server needed (bot falls back to offline mode)
-3. Java 17+ requires `--add-opens` flags for JBoss Remoting compatibility (see commands below)
+3. Java 17+ `--add-opens` flags are configured automatically via `.mvn/jvm.config`
 
 ## Start the server
-3. From the project root, start the server with RL data collection enabled:
+3. From the project root:
    ```
-   cd Mage.Server
-   MAVEN_OPTS="--add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/sun.misc=ALL-UNNAMED" \
-     mvn exec:java -Dexec.mainClass="mage.server.Main" -Dxmage.dataCollectors.rlTrainingData=true
+   make run-server
    ```
    Wait for `Started MAGE server - listening on 0.0.0.0:17171` in the logs.
    Verify you see `Data collectors: rlTrainingData - enabled` in the output.
@@ -18,23 +16,20 @@
 ## Start the client
 4. In a separate terminal, from the project root:
    ```
-   cd Mage.Client
-   MAVEN_OPTS="--add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/sun.misc=ALL-UNNAMED" \
-     mvn exec:java -Dexec.mainClass="mage.client.MageFrame"
+   make run-client
    ```
 5. Connect to `localhost:17171` in the client UI
 
 ## Create a game
 6. Create a new table/match
 7. Select yourself (human) as one player
-8. Select **"Computer - MageZero"** as the opponent
+8. Select any computer opponent (any bot type works)
 9. Pick any two constructed decks
 10. Start the game
 
 ## During gameplay
 11. Watch the **server logs** for these messages:
-    - `"RL init for ... (MZ ver1.0.2)"` -- bot initialized
-    - `"RL recording enabled for human opponent: ..."` -- recorder attached to you
+    - `"RL recording enabled for human player: ..."` -- recorder attached to you
     - `"RL recorded PRIORITY decision (total: X states)"` -- states accumulating
     - `"RL recorded CHOOSE_USE decision ..."` -- if you make yes/no choices
     - `"RL recorded CHOOSE_TARGET decision ..."` -- if you target something
@@ -77,5 +72,4 @@ with open(sys.argv[1], 'rb') as f:
 ## Troubleshooting
 - **Port 17171 already in use**: Kill the existing process with `lsof -ti :17171 | xargs kill`
 - **SQLite native library error on Apple Silicon**: Ensure `Mage.Server/pom.xml` has `sqlite-jdbc` version `3.42.0.0` or later
-- **"wrong java version" or connection errors on Java 17+**: Make sure both server and client are started with the `MAVEN_OPTS="--add-opens ..."` flags shown above
 - **JavaFX errors (prism_es2/prism_sw)**: These are non-fatal warnings on Apple Silicon; the client still works without the embedded browser
