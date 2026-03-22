@@ -90,7 +90,7 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
                 Files.createDirectories(dir);
 
                 String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-                String fileName = String.format("%s_%s_%s.bin",
+                String fileName = String.format("%s_%s_%s.hdf5",
                         player.getName(), game.getId().toString().substring(0, 8), timestamp);
                 String outputPath = dir.resolve(fileName).toString();
 

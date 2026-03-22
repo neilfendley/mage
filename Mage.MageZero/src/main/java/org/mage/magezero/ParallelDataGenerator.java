@@ -15,6 +15,7 @@ import mage.player.ai.*;
 import mage.player.ai.encoder.FeatureMap;
 import mage.player.ai.encoder.Features;
 import mage.player.ai.encoder.LabeledState;
+import mage.player.ai.encoder.LabeledStateWriter;
 import mage.player.ai.encoder.StateEncoder;
 import mage.player.ai.RemoteModelEvaluator;
 import mage.players.Player;

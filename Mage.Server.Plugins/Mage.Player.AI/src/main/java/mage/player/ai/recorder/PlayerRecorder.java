@@ -11,8 +11,8 @@ import mage.player.ai.encoder.StateEncoder;
 import mage.target.Target;
 import org.apache.log4j.Logger;
 
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
+import mage.player.ai.encoder.LabeledStateWriter;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -157,6 +157,7 @@ public class PlayerRecorder implements GameRecorder {
             return 0;
         }
 
+        // Apply TD-discount to set result labels
         List<LabeledState> states = stateEncoder.labeledStates;
         int N = states.size();
         double discountedFuture = playerWon ? 1.0 : -1.0;
@@ -166,22 +167,13 @@ public class PlayerRecorder implements GameRecorder {
             states.get(i).resultLabel = discountedFuture;
         }
 
-        try (DataOutputStream out = new DataOutputStream(new FileOutputStream(outputPath))) {
-            out.writeInt(N);
+        // Write HDF5 in the same CSR format as MageZero training pipeline
+        String hdf5Path = outputPath.endsWith(".hdf5") ? outputPath : outputPath.replace(".bin", ".hdf5");
+        try (LabeledStateWriter writer = new LabeledStateWriter(hdf5Path)) {
             for (LabeledState state : states) {
-                out.writeInt(state.stateVector.size());
-                for (int index : state.stateVector) {
-                    out.writeInt(index);
-                }
-                for (double p : state.actionVector) {
-                    out.writeDouble(p);
-                }
-                out.writeDouble(state.resultLabel);
-                out.writeDouble(state.stateScore);
-                out.writeBoolean(state.isPlayer);
-                out.writeInt(state.actionType.ordinal());
+                writer.writeRecord(state);
             }
-            logger.info("Wrote " + N + " RL training states to " + outputPath);
+            logger.info("Wrote " + N + " RL training states to " + hdf5Path);
             return N;
         } catch (IOException e) {
             logger.error("Failed to write RL training data: " + e.getMessage());

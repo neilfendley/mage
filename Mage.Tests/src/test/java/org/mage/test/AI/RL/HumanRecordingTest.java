@@ -20,9 +20,9 @@ import mage.player.ai.recorder.PlayerRecorder;
 import mage.player.human.HumanPlayer;
 import org.junit.jupiter.api.*;
 
-import java.io.DataInputStream;
+import ch.systemsx.cisd.hdf5.HDF5Factory;
+import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
@@ -280,12 +280,11 @@ public class HumanRecordingTest {
     }
 
     @Test
-    void testWriteRLDataProducesBinaryFile() throws Exception {
+    void testWriteRLDataProducesHDF5File() throws Exception {
         HumanPlayer human = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
         StateEncoder encoder = new StateEncoder();
         human.setRecorder(new PlayerRecorder(encoder));
 
-        // Add some states
         for (int i = 0; i < 5; i++) {
             int[] action = new int[128];
             action[i % 128] = 1;
@@ -293,42 +292,31 @@ public class HumanRecordingTest {
                     ActionEncoder.ActionType.PRIORITY, true);
         }
 
-        // Write to temp file
-        File tempFile = Files.createTempFile("rl_test_", ".bin").toFile();
-        tempFile.deleteOnExit();
+        Path tempDir = Files.createTempDirectory("rl_test_");
+        tempDir.toFile().deleteOnExit();
+        File outputFile = tempDir.resolve("output.hdf5").toFile();
 
-        int written = human.writeRLData(tempFile.getAbsolutePath(), true, 0.95);
+        int written = human.writeRLData(outputFile.getAbsolutePath(), true, 0.95);
         assertEquals(5, written, "Should write 5 states");
-        assertTrue(tempFile.length() > 0, "Output file should not be empty");
+        assertTrue(outputFile.exists() && outputFile.length() > 0, "Output file should exist and be non-empty");
 
-        // Verify binary format: header + first record
-        try (DataInputStream in = new DataInputStream(new FileInputStream(tempFile))) {
-            int recordCount = in.readInt();
-            assertEquals(5, recordCount, "Binary header should contain record count");
+        try (IHDF5Reader reader = HDF5Factory.openForReading(outputFile)) {
+            assertTrue(reader.exists("/indices"));
+            assertTrue(reader.exists("/offsets"));
+            assertTrue(reader.exists("/row"));
 
-            // Read first record: sparse state vector
-            int numIndices = in.readInt();
-            assertEquals(2, numIndices, "First state should have 2 active features");
-            for (int i = 0; i < numIndices; i++) {
-                in.readInt(); // skip index values
-            }
-            // Read action vector (128 doubles)
-            for (int i = 0; i < 128; i++) {
-                in.readDouble();
-            }
-            // Read metadata
-            double resultLabel = in.readDouble();
-            assertTrue(resultLabel > 0, "Result label should be positive for a win");
-            double stateScore = in.readDouble();
-            assertEquals(0.0, stateScore, 0.001, "First state score should be 0.0");
-            boolean isPlayer = in.readBoolean();
-            int actionTypeOrdinal = in.readInt();
-            assertEquals(0, actionTypeOrdinal, "Should be PRIORITY (ordinal 0)");
+            long[] offsets = reader.int64().readArray("/offsets");
+            assertEquals(6, offsets.length, "Should have 5+1 offsets");
+
+            float[][] rows = reader.float32().readMatrix("/row");
+            assertEquals(5, rows.length, "Should have 5 rows");
+            assertEquals(132, rows[0].length, "Each row should be 128 actions + 4 metadata");
+            assertTrue(rows[0][128] > 0, "Result label should be positive for a win");
         }
     }
 
     @Test
-    void testWriteRLDataAppliesTDDiscount() {
+    void testWriteRLDataAppliesTDDiscount() throws Exception {
         HumanPlayer human = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
         StateEncoder encoder = new StateEncoder();
         human.setRecorder(new PlayerRecorder(encoder));
@@ -340,16 +328,10 @@ public class HumanRecordingTest {
                     ActionEncoder.ActionType.PRIORITY, true);
         }
 
-        File tempFile;
-        try {
-            tempFile = Files.createTempFile("rl_td_test_", ".bin").toFile();
-            tempFile.deleteOnExit();
-        } catch (Exception e) {
-            fail("Could not create temp file");
-            return;
-        }
+        Path tempDir = Files.createTempDirectory("rl_td_test_");
+        tempDir.toFile().deleteOnExit();
 
-        human.writeRLData(tempFile.getAbsolutePath(), true, 0.95);
+        human.writeRLData(tempDir.resolve("output.hdf5").toString(), true, 0.95);
 
         // After writing, the encoder's states should have resultLabels set
         for (LabeledState ls : encoder.labeledStates) {
@@ -363,7 +345,8 @@ public class HumanRecordingTest {
     void testWriteRLDataReturnsZeroWhenDisabled() {
         HumanPlayer human = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
         // Recording not enabled
-        int written = human.writeRLData("/tmp/should_not_exist.bin", true, 0.95);
+        int written = human.writeRLData("/tmp/should_not_exist.hdf5", true, 0.95);
+
         assertEquals(0, written, "Should return 0 when recording is disabled");
     }
 
@@ -436,15 +419,14 @@ public class HumanRecordingTest {
     }
 
     @Test
-    void testBinaryFormatIncludesAllMetadata() throws Exception {
-        // Regression: writeRLData must include stateScore, isPlayer, and actionType
-        // in the binary output (not just sparse indices + action + resultLabel).
+    void testWriteRLDataPreservesMetadataInEncoder() throws Exception {
+        // Regression: writeRLData must apply TD-discount and set resultLabels.
+        // Metadata (stateScore, isPlayer, actionType) is preserved in the encoder's states.
         HumanPlayer human = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
         StateEncoder encoder = new StateEncoder();
         encoder.setAgent(human.getId());
         human.setRecorder(new PlayerRecorder(encoder));
 
-        // Add states with different action types and scores
         int[] action1 = new int[128];
         action1[0] = 1;
         encoder.addLabeledState(Set.of(10), action1, 0.42,
@@ -455,41 +437,24 @@ public class HumanRecordingTest {
         encoder.addLabeledState(Set.of(20), action2, -0.5,
                 ActionEncoder.ActionType.CHOOSE_USE, false);
 
-        File tempFile = Files.createTempFile("rl_metadata_test_", ".bin").toFile();
-        tempFile.deleteOnExit();
-        human.writeRLData(tempFile.getAbsolutePath(), true, 0.95);
+        Path tempDir = Files.createTempDirectory("rl_metadata_test_");
+        tempDir.toFile().deleteOnExit();
+        File outputFile = tempDir.resolve("output.hdf5").toFile();
+        int written = human.writeRLData(outputFile.getAbsolutePath(), true, 0.95);
+        assertEquals(2, written, "Should write 2 states");
 
-        try (DataInputStream in = new DataInputStream(new FileInputStream(tempFile))) {
-            int count = in.readInt();
-            assertEquals(2, count);
+        try (IHDF5Reader reader = HDF5Factory.openForReading(outputFile)) {
+            float[][] rows = reader.float32().readMatrix("/row");
+            assertEquals(2, rows.length, "Should have 2 rows");
 
-            // Read first record
-            int numIndices1 = in.readInt();
-            for (int i = 0; i < numIndices1; i++) in.readInt();
-            for (int i = 0; i < 128; i++) in.readDouble();
-            double resultLabel1 = in.readDouble();
-            double stateScore1 = in.readDouble();
-            boolean isPlayer1 = in.readBoolean();
-            int actionType1 = in.readInt();
+            // Row format: [action(128), resultLabel, stateScore, isPlayer, actionType]
+            assertEquals(0.42f, rows[0][129], 0.01f, "stateScore must be preserved");
+            assertEquals(1f, rows[0][130], 0.01f, "isPlayer=true must be 1.0");
+            assertEquals(ActionEncoder.ActionType.PRIORITY.ordinal(), (int) rows[0][131]);
 
-            assertEquals(0.42, stateScore1, 0.001, "stateScore must be preserved");
-            assertTrue(isPlayer1, "isPlayer must be preserved");
-            assertEquals(ActionEncoder.ActionType.PRIORITY.ordinal(), actionType1,
-                    "actionType must be preserved");
-
-            // Read second record
-            int numIndices2 = in.readInt();
-            for (int i = 0; i < numIndices2; i++) in.readInt();
-            for (int i = 0; i < 128; i++) in.readDouble();
-            double resultLabel2 = in.readDouble();
-            double stateScore2 = in.readDouble();
-            boolean isPlayer2 = in.readBoolean();
-            int actionType2 = in.readInt();
-
-            assertEquals(-0.5, stateScore2, 0.001, "stateScore must be preserved for record 2");
-            assertFalse(isPlayer2, "isPlayer=false must be preserved");
-            assertEquals(ActionEncoder.ActionType.CHOOSE_USE.ordinal(), actionType2,
-                    "actionType CHOOSE_USE must be preserved");
+            assertEquals(-0.5f, rows[1][129], 0.01f, "stateScore must be preserved for record 2");
+            assertEquals(0f, rows[1][130], 0.01f, "isPlayer=false must be 0.0");
+            assertEquals(ActionEncoder.ActionType.CHOOSE_USE.ordinal(), (int) rows[1][131]);
         }
     }
 
@@ -625,31 +590,21 @@ public class HumanRecordingTest {
         collector.onGameEnd(game);
 
         // Verify a .bin file was created in the output directory
-        File[] files = tempDir.toFile().listFiles((dir, name) -> name.endsWith(".bin"));
+        File[] files = tempDir.toFile().listFiles((dir, name) -> name.endsWith(".hdf5"));
         assertNotNull(files, "Output directory should exist");
-        assertEquals(1, files.length, "Should produce exactly one .bin file");
+        assertEquals(1, files.length, "Should produce exactly one .hdf5 file");
 
         File outputFile = files[0];
         assertTrue(outputFile.getName().startsWith("TestHuman_"),
                 "Filename should start with player name");
         assertTrue(outputFile.length() > 0, "Output file should not be empty");
 
-        // Verify binary content
-        try (DataInputStream in = new DataInputStream(new FileInputStream(outputFile))) {
-            int recordCount = in.readInt();
-            assertEquals(5, recordCount, "File should contain 5 records");
-
-            int numIndices = in.readInt();
-            assertTrue(numIndices > 0, "Should have active features");
-            for (int i = 0; i < numIndices; i++) in.readInt();
-            for (int i = 0; i < 128; i++) in.readDouble();
-            double resultLabel = in.readDouble();
+        // Verify HDF5 content
+        try (IHDF5Reader reader = HDF5Factory.openForReading(outputFile)) {
+            float[][] rows = reader.float32().readMatrix("/row");
+            assertEquals(5, rows.length, "File should contain 5 records");
             // human.hasWon() is false (game never started), so labels should be negative
-            assertTrue(resultLabel < 0, "Result label should be negative when player hasn't won");
-            in.readDouble(); // stateScore
-            in.readBoolean(); // isPlayer
-            int actionType = in.readInt();
-            assertEquals(ActionEncoder.ActionType.PRIORITY.ordinal(), actionType);
+            assertTrue(rows[0][128] < 0, "Result label should be negative when player hasn't won");
         }
 
         // Verify opponent produced no file (no recorder)
