@@ -151,14 +151,11 @@ public class PlayerRecorder implements GameRecorder {
         }
     }
 
-    @Override
-    public int writeRLData(String outputPath, boolean playerWon, double tdDiscount) {
-        if (stateEncoder.labeledStates.isEmpty()) {
-            return 0;
-        }
-
-        // Apply TD-discount to set result labels
-        List<LabeledState> states = stateEncoder.labeledStates;
+    /**
+     * Applies TD-discount to a list of labeled states, setting resultLabel on each.
+     * Shared by both PlayerRecorder (human games) and ParallelDataGenerator (bot games).
+     */
+    public static void applyTDDiscount(List<LabeledState> states, boolean playerWon, double tdDiscount) {
         int N = states.size();
         double discountedFuture = playerWon ? 1.0 : -1.0;
         for (int i = N - 1; i >= 0; i--) {
@@ -166,6 +163,16 @@ public class PlayerRecorder implements GameRecorder {
                     + (states.get(i).stateScore * (1 - tdDiscount));
             states.get(i).resultLabel = discountedFuture;
         }
+    }
+
+    @Override
+    public int writeRLData(String outputPath, boolean playerWon, double tdDiscount) {
+        if (stateEncoder.labeledStates.isEmpty()) {
+            return 0;
+        }
+
+        List<LabeledState> states = stateEncoder.labeledStates;
+        applyTDDiscount(states, playerWon, tdDiscount);
 
         // Write HDF5 in the same CSR format as MageZero training pipeline
         String hdf5Path = outputPath.endsWith(".hdf5") ? outputPath : outputPath.replace(".bin", ".hdf5");
@@ -173,8 +180,8 @@ public class PlayerRecorder implements GameRecorder {
             for (LabeledState state : states) {
                 writer.writeRecord(state);
             }
-            logger.info("Wrote " + N + " RL training states to " + hdf5Path);
-            return N;
+            logger.info("Wrote " + states.size() + " RL training states to " + hdf5Path);
+            return states.size();
         } catch (IOException e) {
             logger.error("Failed to write RL training data: " + e.getMessage());
             return -1;

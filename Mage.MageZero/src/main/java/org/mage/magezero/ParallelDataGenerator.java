@@ -17,6 +17,7 @@ import mage.player.ai.encoder.Features;
 import mage.player.ai.encoder.LabeledState;
 import mage.player.ai.encoder.LabeledStateWriter;
 import mage.player.ai.encoder.StateEncoder;
+import mage.player.ai.recorder.PlayerRecorder;
 import mage.player.ai.RemoteModelEvaluator;
 import mage.players.Player;
 import mage.util.RandomUtil;
@@ -395,15 +396,8 @@ public class ParallelDataGenerator {
         }
     }
     private List<LabeledState> generateLabeledStatesForGame(StateEncoder encoder, boolean didPlayerAWin, double tdDiscount) {
-        int N = encoder.labeledStates.size();
-
-        double discountedFuture = didPlayerAWin ? 1.0 : -1.0;
-        for (int i = N-1; i >= 0; i--) {
-            discountedFuture = (tdDiscount * discountedFuture) + (encoder.labeledStates.get(i).stateScore*(1- tdDiscount));
-            encoder.labeledStates.get(i).resultLabel = discountedFuture;
-        }
+        PlayerRecorder.applyTDDiscount(encoder.labeledStates, didPlayerAWin, tdDiscount);
         return encoder.labeledStates;
-
     }
     public static String extractDeckName(String deckPath) {
         // Handle both forward and backslashes
