@@ -3,14 +3,26 @@
 ## Prerequisites
 1. Build the project: `mvn clean install -DskipTests`
 2. No neural network inference server needed (bot falls back to offline mode)
+3. Java 17+ requires `--add-opens` flags for JBoss Remoting compatibility (see commands below)
 
-## Setup
-3. Start the Mage server with RL data collection enabled:
+## Start the server
+3. From the project root, start the server with RL data collection enabled:
    ```
-   java -Dxmage.dataCollectors.rlTrainingData=true -jar Mage.Server/target/mage-server.jar
+   cd Mage.Server
+   MAVEN_OPTS="--add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/sun.misc=ALL-UNNAMED" \
+     mvn exec:java -Dexec.mainClass="mage.server.Main" -Dxmage.dataCollectors.rlTrainingData=true
    ```
-4. Start the Mage client: `java -jar Mage.Client/target/mage-client.jar`
-5. Connect to your local server
+   Wait for `Started MAGE server - listening on 0.0.0.0:17171` in the logs.
+   Verify you see `Data collectors: rlTrainingData - enabled` in the output.
+
+## Start the client
+4. In a separate terminal, from the project root:
+   ```
+   cd Mage.Client
+   MAVEN_OPTS="--add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/sun.misc=ALL-UNNAMED" \
+     mvn exec:java -Dexec.mainClass="mage.client.MageFrame"
+   ```
+5. Connect to `localhost:17171` in the client UI
 
 ## Create a game
 6. Create a new table/match
@@ -31,7 +43,7 @@
 ## After the game ends
 13. Check the server logs for:
     - `"RL training data: wrote N states for ... to rl_training_data/..."` -- data persisted
-14. Check the `rl_training_data/` directory for a `.bin` file
+14. Check the `Mage.Server/rl_training_data/` directory for a `.bin` file
 15. Verify the file is non-empty and its name contains your player name
 
 ## Validate the output file
@@ -61,3 +73,9 @@ with open(sys.argv[1], 'rb') as f:
 - `action_idx=0` entries are pass actions
 - `result_label` values should be positive if you won, negative if you lost
 - Later states should have `result_label` closer to +1.0 or -1.0 (TD-discount effect)
+
+## Troubleshooting
+- **Port 17171 already in use**: Kill the existing process with `lsof -ti :17171 | xargs kill`
+- **SQLite native library error on Apple Silicon**: Ensure `Mage.Server/pom.xml` has `sqlite-jdbc` version `3.42.0.0` or later
+- **"wrong java version" or connection errors on Java 17+**: Make sure both server and client are started with the `MAVEN_OPTS="--add-opens ..."` flags shown above
+- **JavaFX errors (prism_es2/prism_sw)**: These are non-fatal warnings on Apple Silicon; the client still works without the embedded browser
