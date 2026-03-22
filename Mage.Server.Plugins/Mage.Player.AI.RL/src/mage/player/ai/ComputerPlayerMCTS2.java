@@ -7,6 +7,7 @@ import mage.game.Game;
 import mage.player.ai.encoder.ActionEncoder;
 import mage.player.ai.encoder.StateEncoder;
 import mage.player.ai.score.GameStateEvaluator2;
+import mage.player.ai.recorder.PlayerRecorder;
 import mage.player.human.HumanPlayer;
 import mage.players.Player;
 import mage.players.PlayerScript;
@@ -76,7 +77,7 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
             StateEncoder humanEncoder = new StateEncoder();
             humanEncoder.setAgent(opponent.getId());
             humanEncoder.setOpponent(getId());
-            humanOpponent.enableRLRecording(humanEncoder);
+            humanOpponent.setRecorder(new PlayerRecorder(humanEncoder));
             logger.info("RL recording enabled for human opponent: " + opponent.getName());
         }
     }

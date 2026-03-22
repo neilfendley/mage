@@ -8,6 +8,7 @@ import mage.cards.repository.CardRepository;
 import mage.cards.repository.RepositoryUtil;
 import mage.constants.*;
 import mage.game.*;
+import mage.game.GameRecorder;
 
 import java.io.DataInputStream;
 import java.io.File;
@@ -16,11 +17,11 @@ import java.nio.file.Files;
 import mage.game.match.Match;
 import mage.game.match.MatchOptions;
 import mage.game.mulligan.MulliganType;
-import mage.player.ai.ComputerPlayer8;
 import mage.player.ai.ComputerPlayerMCTS2;
 import mage.player.ai.encoder.ActionEncoder;
 import mage.player.ai.encoder.LabeledState;
 import mage.player.ai.encoder.StateEncoder;
+import mage.player.ai.recorder.PlayerRecorder;
 import mage.player.human.HumanPlayer;
 import mage.players.Player;
 import org.junit.jupiter.api.*;
@@ -52,14 +53,16 @@ public class HumanRecordingTest {
     void testEnableRLRecordingOnHumanPlayer() {
         HumanPlayer human = new HumanPlayer("TestHuman", RangeOfInfluence.ONE, 1);
         assertFalse(human.isRlRecordingEnabled(), "Recording should be disabled by default");
-        assertNull(human.getStateEncoder(), "Encoder should be null by default");
+        assertNull(human.getRecorder(), "Recorder should be null by default");
 
         StateEncoder encoder = new StateEncoder();
-        human.enableRLRecording(encoder);
+        PlayerRecorder recorder = new PlayerRecorder(encoder);
+        human.setRecorder(recorder);
 
-        assertTrue(human.isRlRecordingEnabled(), "Recording should be enabled after enableRLRecording()");
-        assertNotNull(human.getStateEncoder(), "Encoder should be set after enableRLRecording()");
-        assertSame(encoder, human.getStateEncoder(), "Should return the same encoder that was set");
+        assertTrue(human.isRlRecordingEnabled(), "Recording should be enabled after setRecorder()");
+        assertNotNull(human.getRecorder(), "Recorder should be set");
+        assertSame(recorder, human.getRecorder(), "Should return the same recorder that was set");
+        assertSame(encoder, recorder.getStateEncoder(), "Recorder should wrap the encoder");
     }
 
     @Test
@@ -99,21 +102,22 @@ public class HumanRecordingTest {
         StateEncoder humanEncoder = new StateEncoder();
         humanEncoder.setAgent(human.getId());
         humanEncoder.setOpponent(bot.getId());
-        human.enableRLRecording(humanEncoder);
+        PlayerRecorder recorder = new PlayerRecorder(humanEncoder);
+        human.setRecorder(recorder);
 
         // Verify the wiring
         assertTrue(human.isRlRecordingEnabled(),
                 "Recording should be enabled after wiring");
-        assertEquals(human.getId(), human.getStateEncoder().getMyPlayerId(),
+        assertEquals(human.getId(), recorder.getStateEncoder().getMyPlayerId(),
                 "Human encoder's agent should be the human's ID");
 
         // Verify recording works
         Set<Integer> state = Set.of(1, 2, 3);
         int[] action = new int[128];
         action[5] = 1;
-        human.getStateEncoder().addLabeledState(state, action, 0.0,
+        recorder.getStateEncoder().addLabeledState(state, action, 0.0,
                 ActionEncoder.ActionType.PRIORITY, false);
-        assertEquals(1, human.getStateEncoder().labeledStates.size(),
+        assertEquals(1, recorder.getStateEncoder().labeledStates.size(),
                 "Should accumulate states after wiring");
     }
 
@@ -179,7 +183,7 @@ public class HumanRecordingTest {
         // a one-hot at index 0 should be recorded.
         StateEncoder encoder = new StateEncoder();
         HumanPlayer human = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
-        human.enableRLRecording(encoder);
+        human.setRecorder(new PlayerRecorder(encoder));
 
         // Simulate what recordPassAction does internally
         Set<Integer> state = Set.of(10, 20, 30);
@@ -281,7 +285,7 @@ public class HumanRecordingTest {
     void testWriteRLDataProducesBinaryFile() throws Exception {
         HumanPlayer human = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
         StateEncoder encoder = new StateEncoder();
-        human.enableRLRecording(encoder);
+        human.setRecorder(new PlayerRecorder(encoder));
 
         // Add some states
         for (int i = 0; i < 5; i++) {
@@ -329,7 +333,7 @@ public class HumanRecordingTest {
     void testWriteRLDataAppliesTDDiscount() {
         HumanPlayer human = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
         StateEncoder encoder = new StateEncoder();
-        human.enableRLRecording(encoder);
+        human.setRecorder(new PlayerRecorder(encoder));
 
         for (int i = 0; i < 3; i++) {
             int[] action = new int[128];
@@ -373,7 +377,7 @@ public class HumanRecordingTest {
         // so that checkpoint/rollback doesn't silently drop recording.
         HumanPlayer original = new HumanPlayer("TestPlayer", RangeOfInfluence.ONE, 1);
         StateEncoder encoder = new StateEncoder();
-        original.enableRLRecording(encoder);
+        original.setRecorder(new PlayerRecorder(encoder));
 
         // Add a state before copying
         int[] action = new int[128];
@@ -383,16 +387,17 @@ public class HumanRecordingTest {
         // Copy the player (simulates checkpoint)
         HumanPlayer copy = new HumanPlayer(original);
 
-        assertTrue(copy.isRlRecordingEnabled(), "Copy should preserve rlRecordingEnabled");
-        assertSame(encoder, copy.getStateEncoder(),
-                "Copy should share the same StateEncoder instance");
-        assertEquals(1, copy.getStateEncoder().labeledStates.size(),
+        assertTrue(copy.isRlRecordingEnabled(), "Copy should preserve recorder");
+        assertSame(original.getRecorder(), copy.getRecorder(),
+                "Copy should share the same recorder instance");
+        PlayerRecorder copyRecorder = (PlayerRecorder) copy.getRecorder();
+        assertEquals(1, copyRecorder.getStateEncoder().labeledStates.size(),
                 "Copy should see states accumulated before the copy");
 
         // Add a state through the copy — should be visible from original's encoder too
         int[] action2 = new int[128];
         action2[10] = 1;
-        copy.getStateEncoder().addLabeledState(Set.of(3, 4), action2, 0.0,
+        copyRecorder.getStateEncoder().addLabeledState(Set.of(3, 4), action2, 0.0,
                 ActionEncoder.ActionType.PRIORITY, true);
         assertEquals(2, encoder.labeledStates.size(),
                 "States added via copy should accumulate in the shared encoder");
@@ -401,28 +406,35 @@ public class HumanRecordingTest {
     @Test
     void testIsPlayerUsesIdNotName() {
         // Regression: isPlayer must be based on player ID, not the literal name "PlayerA".
-        // A human player named "Alice" should still get correct isPlayer labeling.
+        // A human player named "Alice" should still get correct isPlayer labeling
+        // across all recorder methods.
         HumanPlayer human = new HumanPlayer("Alice", RangeOfInfluence.ONE, 1);
+        UUID opponentId = UUID.randomUUID();
         StateEncoder encoder = new StateEncoder();
-        encoder.setAgent(human.getId()); // encoder considers this player as "self"
-        human.enableRLRecording(encoder);
+        encoder.setAgent(human.getId());
+        encoder.setOpponent(opponentId);
+        PlayerRecorder recorder = new PlayerRecorder(encoder);
+        human.setRecorder(recorder);
 
-        // Simulate what recordPassAction does
-        int[] action = new int[128];
-        action[0] = 1;
-        // The production code uses: stateEncoder.getMyPlayerId().equals(playerId)
-        boolean isPlayer = encoder.getMyPlayerId().equals(human.getId());
-        encoder.addLabeledState(Set.of(1), action, 0.0, ActionEncoder.ActionType.PRIORITY, isPlayer);
+        Set<Integer> fakeState = Set.of(1, 2, 3);
 
+        // Test recordChooseUse passes playerId correctly
+        recorder.recordChooseUse(fakeState, true, human.getId());
         assertTrue(encoder.labeledStates.get(0).isPlayer,
-                "isPlayer should be true when encoder agent matches player, regardless of name");
+                "chooseUse: isPlayer should be true for the agent's own ID");
 
-        // Now test with a different player ID (opponent perspective)
-        StateEncoder opponentEncoder = new StateEncoder();
-        opponentEncoder.setAgent(UUID.randomUUID()); // different ID
-        boolean isPlayerFromOpponent = opponentEncoder.getMyPlayerId().equals(human.getId());
-        assertFalse(isPlayerFromOpponent,
-                "isPlayer should be false when encoder agent doesn't match player ID");
+        recorder.recordChooseUse(fakeState, false, opponentId);
+        assertFalse(encoder.labeledStates.get(1).isPlayer,
+                "chooseUse: isPlayer should be false for opponent ID");
+
+        // Test recordMakeChoice passes playerId correctly
+        recorder.recordMakeChoice(fakeState, "Red", human.getId());
+        assertTrue(encoder.labeledStates.get(2).isPlayer,
+                "makeChoice: isPlayer should be true for the agent's own ID");
+
+        recorder.recordMakeChoice(fakeState, "Red", opponentId);
+        assertFalse(encoder.labeledStates.get(3).isPlayer,
+                "makeChoice: isPlayer should be false for opponent ID");
     }
 
     @Test
@@ -432,7 +444,7 @@ public class HumanRecordingTest {
         HumanPlayer human = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
         StateEncoder encoder = new StateEncoder();
         encoder.setAgent(human.getId());
-        human.enableRLRecording(encoder);
+        human.setRecorder(new PlayerRecorder(encoder));
 
         // Add states with different action types and scores
         int[] action1 = new int[128];
@@ -521,7 +533,7 @@ public class HumanRecordingTest {
         // The copy constructor saves checkpoint size; priority() trims on restore.
         HumanPlayer original = new HumanPlayer("TestPlayer", RangeOfInfluence.ONE, 1);
         StateEncoder encoder = new StateEncoder();
-        original.enableRLRecording(encoder);
+        original.setRecorder(new PlayerRecorder(encoder));
 
         // Record 3 states before checkpoint
         for (int i = 0; i < 3; i++) {
@@ -546,13 +558,13 @@ public class HumanRecordingTest {
         // Simulate undo: the checkpointCopy becomes the active player.
         // Its priority() call should trim states back to checkpoint size (3).
         // We can't call priority() without a full game, so test the trimming logic directly.
-        StateEncoder restoredEncoder = checkpointCopy.getStateEncoder();
-        assertSame(encoder, restoredEncoder, "Should share same encoder");
+        GameRecorder restoredRecorder = checkpointCopy.getRecorder();
+        assertSame(original.getRecorder(), restoredRecorder, "Should share same recorder");
 
         // Replicate what priority() does on restore
-        // (checkpointCopy has rlCheckpointSize=3, encoder has 5 states)
-        if (restoredEncoder.labeledStates.size() > 3) {
-            restoredEncoder.labeledStates.subList(3, restoredEncoder.labeledStates.size()).clear();
+        // (checkpointCopy has rlCheckpointSize=3, recorder has 5 states)
+        if (restoredRecorder.getRecordedStateCount() > 3) {
+            restoredRecorder.trimToCheckpoint(3);
         }
 
         assertEquals(3, encoder.labeledStates.size(),
