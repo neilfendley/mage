@@ -287,6 +287,10 @@ public interface Player extends MageItem, Copyable<Player> {
         return null;
     }
 
+    default void setRecorder(GameRecorder recorder) {
+        // no-op by default — override in player implementations that support recording
+    }
+
     boolean hasQuit();
 
     void quit(Game game);

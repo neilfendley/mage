@@ -26,6 +26,21 @@ public class PlayerRecorder implements GameRecorder {
 
     private static final Logger logger = Logger.getLogger(PlayerRecorder.class);
 
+    /** Register the factory so core/server code can create recorders without AI imports. */
+    static {
+        GameRecorder.Factory.register((playerId, opponentId) -> {
+            StateEncoder encoder = new StateEncoder();
+            encoder.setAgent(playerId);
+            encoder.setOpponent(opponentId);
+            return new PlayerRecorder(encoder);
+        });
+    }
+
+    /** Force class loading to trigger the static initializer. */
+    public static void ensureRegistered() {
+        // no-op — loading this class registers the factory
+    }
+
     private final StateEncoder stateEncoder;
     private final ActionEncoder actionEncoder;
 
