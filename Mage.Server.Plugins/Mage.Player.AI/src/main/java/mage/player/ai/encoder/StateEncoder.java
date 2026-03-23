@@ -220,7 +220,7 @@ public class StateEncoder {
             }
         }
         //paired
-        Card pairedCard = (Card) p.getPairedCard();
+        Card pairedCard = p.getPairedMOR() != null ? p.getPairedMOR().getPermanent(game) : null;
         if(pairedCard != null) {
             Features pairedFeatures = f.getSubFeatures("paired", false);
             processCard(pairedCard, game, pairedFeatures);

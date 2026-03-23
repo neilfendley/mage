@@ -2,33 +2,38 @@
 <Deck xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <NetDeckID>0</NetDeckID>
   <PreconstructedDeckID>0</PreconstructedDeckID>
-  <Cards CatID="146975" Quantity="4" Sideboard="false" Name="Ashling, Rekindled" Annotation="0"/>
-  <Cards CatID="61853" Quantity="1" Sideboard="false" Name="Botanical Sanctum" Annotation="0"/>
-  <Cards CatID="136201" Quantity="4" Sideboard="false" Name="Bounce Off" Annotation="0"/>
-  <Cards CatID="47475" Quantity="4" Sideboard="false" Name="Breeding Pool" Annotation="0"/>
-  <Cards CatID="117702" Quantity="4" Sideboard="false" Name="Cavern of Souls" Annotation="0"/>
   <Cards CatID="139575" Quantity="1" Sideboard="false" Name="Cori Mountain Monastery" Annotation="0"/>
-  <Cards CatID="146985" Quantity="4" Sideboard="false" Name="Deceit" Annotation="0"/>
-  <Cards CatID="146919" Quantity="4" Sideboard="false" Name="Eclipsed Realms" Annotation="0"/>
-  <Cards CatID="146669" Quantity="4" Sideboard="false" Name="Flamebraider" Annotation="0"/>
-  <Cards CatID="139083" Quantity="4" Sideboard="false" Name="Winternight Stories" Annotation="0"/>
-  <Cards CatID="116240" Quantity="1" Sideboard="false" Name="Restless Vinestalk" Annotation="0"/>
-  <Cards CatID="117700" Quantity="4" Sideboard="false" Name="Roaming Throne" Annotation="0"/>
-  <Cards CatID="143974" Quantity="1" Sideboard="false" Name="Spider-Sense" Annotation="0"/>
-  <Cards CatID="61851" Quantity="2" Sideboard="false" Name="Spirebluff Canal" Annotation="0"/>
-  <Cards CatID="141555" Quantity="2" Sideboard="false" Name="Starting Town" Annotation="0"/>
-  <Cards CatID="69927" Quantity="4" Sideboard="false" Name="Steam Vents" Annotation="0"/>
   <Cards CatID="146533" Quantity="3" Sideboard="false" Name="Sunderflock" Annotation="0"/>
   <Cards CatID="146989" Quantity="4" Sideboard="false" Name="Vibrance" Annotation="0"/>
+  <Cards CatID="141555" Quantity="2" Sideboard="false" Name="Starting Town" Annotation="0"/>
+  <Cards CatID="57149" Quantity="3" Sideboard="false" Name="Burst Lightning" Annotation="0"/>
+  <Cards CatID="136201" Quantity="2" Sideboard="false" Name="Bounce Off" Annotation="0"/>
+  <Cards CatID="116240" Quantity="1" Sideboard="false" Name="Restless Vinestalk" Annotation="0"/>
+  <Cards CatID="121888" Quantity="1" Sideboard="false" Name="Ill-Timed Explosion" Annotation="0"/>
   <Cards CatID="146991" Quantity="4" Sideboard="false" Name="Wistfulness" Annotation="0"/>
+  <Cards CatID="146985" Quantity="4" Sideboard="false" Name="Deceit" Annotation="0"/>
+  <Cards CatID="139083" Quantity="2" Sideboard="false" Name="Winternight Stories" Annotation="0"/>
+  <Cards CatID="47475" Quantity="3" Sideboard="false" Name="Breeding Pool" Annotation="0"/>
+  <Cards CatID="146669" Quantity="4" Sideboard="false" Name="Flamebraider" Annotation="0"/>
   <Cards CatID="79626" Quantity="1" Sideboard="false" Name="Island" Annotation="0"/>
+  <Cards CatID="146919" Quantity="2" Sideboard="false" Name="Eclipsed Realms" Annotation="0"/>
+  <Cards CatID="146975" Quantity="4" Sideboard="false" Name="Ashling, Rekindled" Annotation="0"/>
+  <Cards CatID="133560" Quantity="2" Sideboard="false" Name="Secluded Courtyard" Annotation="0"/>
+  <Cards CatID="44245" Quantity="4" Sideboard="false" Name="Cavern of Souls" Annotation="0"/>
   <Cards CatID="118404" Quantity="1" Sideboard="false" Name="Pit of Offerings" Annotation="0"/>
-  <Cards CatID="146533" Quantity="1" Sideboard="true" Name="Sunderflock" Annotation="0"/>
-  <Cards CatID="146699" Quantity="2" Sideboard="true" Name="Sear" Annotation="0"/>
-  <Cards CatID="79598" Quantity="2" Sideboard="true" Name="Soul-Guide Lantern" Annotation="0"/>
-  <Cards CatID="146527" Quantity="2" Sideboard="true" Name="Spell Snare" Annotation="0"/>
-  <Cards CatID="143974" Quantity="2" Sideboard="true" Name="Spider-Sense" Annotation="0"/>
+  <Cards CatID="142757" Quantity="1" Sideboard="false" Name="Quantum Riddler" Annotation="0"/>
+  <Cards CatID="69927" Quantity="4" Sideboard="false" Name="Steam Vents" Annotation="0"/>
+  <Cards CatID="61851" Quantity="3" Sideboard="false" Name="Spirebluff Canal" Annotation="0"/>
+  <Cards CatID="117700" Quantity="4" Sideboard="false" Name="Roaming Throne" Annotation="0"/>
   <Cards CatID="53983" Quantity="2" Sideboard="true" Name="Disdainful Stroke" Annotation="0"/>
-  <Cards CatID="121298" Quantity="2" Sideboard="true" Name="Ill-Timed Explosion" Annotation="0"/>
-  <Cards CatID="33081" Quantity="2" Sideboard="true" Name="Flashfreeze" Annotation="0"/>
+  <Cards CatID="80108" Quantity="1" Sideboard="true" Name="Essence Scatter" Annotation="0"/>
+  <Cards CatID="57499" Quantity="1" Sideboard="true" Name="Flashfreeze" Annotation="0"/>
+  <Cards CatID="146699" Quantity="1" Sideboard="true" Name="Sear" Annotation="0"/>
+  <Cards CatID="145140" Quantity="1" Sideboard="true" Name="The Unagi of Kyoshi Island" Annotation="0"/>
+  <Cards CatID="129163" Quantity="2" Sideboard="true" Name="Beza, the Bounding Spring" Annotation="0"/>
+  <Cards CatID="121888" Quantity="1" Sideboard="true" Name="Ill-Timed Explosion" Annotation="0"/>
+  <Cards CatID="82262" Quantity="1" Sideboard="true" Name="Abrade" Annotation="0"/>
+  <Cards CatID="79598" Quantity="2" Sideboard="true" Name="Soul-Guide Lantern" Annotation="0"/>
+  <Cards CatID="146527" Quantity="1" Sideboard="true" Name="Spell Snare" Annotation="0"/>
+  <Cards CatID="141209" Quantity="2" Sideboard="true" Name="Fire Magic" Annotation="0"/>
 </Deck>

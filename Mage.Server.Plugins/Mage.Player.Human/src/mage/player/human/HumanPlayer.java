@@ -48,12 +48,11 @@ import mage.util.*;
 import mage.utils.SystemUtil;
 import org.apache.log4j.Logger;
 
-import java.awt.*;
+import java.awt.Color;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
-
 import static mage.constants.PlayerAction.REQUEST_AUTO_ANSWER_RESET_ALL;
 import static mage.constants.PlayerAction.TRIGGER_AUTO_ORDER_RESET_ALL;
 import static mage.target.TargetImpl.STOP_CHOOSING;
