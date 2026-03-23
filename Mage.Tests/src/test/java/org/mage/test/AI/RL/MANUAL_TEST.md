@@ -3,26 +3,33 @@
 ## Prerequisites
 1. Build the project: `mvn clean install -DskipTests`
 2. No neural network inference server needed (bot falls back to offline mode)
+3. Java 17+ `--add-opens` flags are configured automatically via `.mvn/jvm.config`
 
-## Setup
-3. Start the Mage server with RL data collection enabled:
+## Start the server
+3. From the project root:
    ```
-   java -Dxmage.dataCollectors.rlTrainingData=true -jar Mage.Server/target/mage-server.jar
+   make run-server
    ```
-4. Start the Mage client: `java -jar Mage.Client/target/mage-client.jar`
-5. Connect to your local server
+   Wait for `Started MAGE server - listening on 0.0.0.0:17171` in the logs.
+   Verify you see `Data collectors: rlTrainingData - enabled` in the output.
+
+## Start the client
+4. In a separate terminal, from the project root:
+   ```
+   make run-client
+   ```
+5. Connect to `localhost:17171` in the client UI
 
 ## Create a game
 6. Create a new table/match
 7. Select yourself (human) as one player
-8. Select **"Computer - MageZero"** as the opponent
+8. Select any computer opponent (any bot type works)
 9. Pick any two constructed decks
 10. Start the game
 
 ## During gameplay
 11. Watch the **server logs** for these messages:
-    - `"RL init for ... (MZ ver1.0.2)"` -- bot initialized
-    - `"RL recording enabled for human opponent: ..."` -- recorder attached to you
+    - `"RL recording enabled for human player: ..."` -- recorder attached to you
     - `"RL recorded PRIORITY decision (total: X states)"` -- states accumulating
     - `"RL recorded CHOOSE_USE decision ..."` -- if you make yes/no choices
     - `"RL recorded CHOOSE_TARGET decision ..."` -- if you target something
@@ -31,7 +38,7 @@
 ## After the game ends
 13. Check the server logs for:
     - `"RL training data: wrote N states for ... to rl_training_data/..."` -- data persisted
-14. Check the `rl_training_data/` directory for a `.bin` file
+14. Check the `Mage.Server/rl_training_data/` directory for a `.bin` file
 15. Verify the file is non-empty and its name contains your player name
 
 ## Validate the output file
@@ -61,3 +68,8 @@ with open(sys.argv[1], 'rb') as f:
 - `action_idx=0` entries are pass actions
 - `result_label` values should be positive if you won, negative if you lost
 - Later states should have `result_label` closer to +1.0 or -1.0 (TD-discount effect)
+
+## Troubleshooting
+- **Port 17171 already in use**: Kill the existing process with `lsof -ti :17171 | xargs kill`
+- **SQLite native library error on Apple Silicon**: Ensure `Mage.Server/pom.xml` has `sqlite-jdbc` version `3.42.0.0` or later
+- **JavaFX errors (prism_es2/prism_sw)**: These are non-fatal warnings on Apple Silicon; the client still works without the embedded browser

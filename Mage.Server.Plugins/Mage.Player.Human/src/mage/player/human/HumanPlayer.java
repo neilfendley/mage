@@ -140,6 +140,7 @@ public class HumanPlayer extends PlayerImpl {
         initReplacementDialog();
     }
 
+    @Override
     public void setRecorder(GameRecorder recorder) {
         this.recorder = recorder;
     }

@@ -5,6 +5,7 @@ import mage.game.GameRecorder;
 import mage.players.Player;
 import org.apache.log4j.Logger;
 
+import java.util.UUID;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -42,6 +43,38 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
     @Override
     public String getInitInfo() {
         return "output dir: " + outputDir;
+    }
+
+    @Override
+    public void onGameStart(Game game) {
+        // Ensure the PlayerRecorder factory is registered (triggers static initializer)
+        try {
+            Class.forName("mage.player.ai.recorder.PlayerRecorder");
+        } catch (ClassNotFoundException e) {
+            logger.warn("PlayerRecorder class not found — RL recording will not be available");
+            return;
+        }
+
+        // Attach recorders to any human player whose opponent is a bot
+        for (Player player : game.getPlayers().values()) {
+            if (player.isHuman() && player.getRecorder() == null) {
+                // Find an AI opponent
+                for (UUID opponentId : game.getOpponents(player.getId())) {
+                    Player opponent = game.getPlayer(opponentId);
+                    if (opponent != null && opponent.isComputer()) {
+                        GameRecorder recorder = GameRecorder.Factory.create(player.getId(), opponentId);
+                        if (recorder != null) {
+                            player.setRecorder(recorder);
+                            logger.info("RL recording enabled for human player: " + player.getName()
+                                    + " (vs " + opponent.getName() + ")");
+                        } else {
+                            logger.warn("RL recording factory not registered — is mage-player-ai loaded?");
+                        }
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     @Override
