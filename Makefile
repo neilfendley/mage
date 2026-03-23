@@ -31,9 +31,23 @@ package:
 .PHONY: install
 install: clean build package
 
+# JVM --add-opens flags for Java 17+ are in .mvn/jvm.config
+# (auto-loaded by Maven on all platforms)
+
 .PHONY: run-krenko
 run-krenko:
-	MAVEN_OPTS="-Xmx4g" mvn -pl Mage.Tests exec:java \
+	mvn -pl Mage.Tests exec:java \
 		-Dexec.mainClass="org.mage.test.AI.KrenkoMain" \
 		-Dexec.classpathScope=test
+
+.PHONY: run-server
+run-server:
+	cd Mage.Server && mvn exec:java \
+		-Dexec.mainClass="mage.server.Main" \
+		-Dxmage.dataCollectors.rlTrainingData=true
+
+.PHONY: run-client
+run-client:
+	cd Mage.Client && mvn exec:java \
+		-Dexec.mainClass="mage.client.MageFrame"
 

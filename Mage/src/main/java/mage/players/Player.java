@@ -21,6 +21,7 @@ import mage.designations.DesignationType;
 import mage.filter.FilterCard;
 import mage.filter.FilterMana;
 import mage.game.*;
+import mage.game.GameRecorder;
 import mage.game.draft.Draft;
 import mage.game.events.GameEvent;
 import mage.game.match.Match;
@@ -277,6 +278,18 @@ public interface Player extends MageItem, Copyable<Player> {
     boolean hasDrew();
 
     boolean hasWon();
+
+    /**
+     * Returns the GameRecorder attached to this player, or null if none.
+     * Used by DataCollectors to persist RL training data after game end.
+     */
+    default GameRecorder getRecorder() {
+        return null;
+    }
+
+    default void setRecorder(GameRecorder recorder) {
+        // no-op by default — override in player implementations that support recording
+    }
 
     boolean hasQuit();
 
