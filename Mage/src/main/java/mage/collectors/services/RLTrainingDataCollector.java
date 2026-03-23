@@ -5,12 +5,12 @@ import mage.game.GameRecorder;
 import mage.players.Player;
 import org.apache.log4j.Logger;
 
-import java.util.UUID;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * Data collector that writes RL training data to disk when a game ends.
@@ -55,6 +55,11 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
             return;
         }
 
+        // Only supported for two-player games (StateEncoder models a single opponent)
+        if (game.getPlayers().size() != 2) {
+            return;
+        }
+
         // Attach recorders to any human player whose opponent is a bot
         for (Player player : game.getPlayers().values()) {
             if (player.isHuman() && player.getRecorder() == null) {
@@ -90,7 +95,7 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
                 Files.createDirectories(dir);
 
                 String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-                String fileName = String.format("%s_%s_%s.bin",
+                String fileName = String.format("%s_%s_%s.hdf5",
                         player.getName(), game.getId().toString().substring(0, 8), timestamp);
                 String outputPath = dir.resolve(fileName).toString();
 

@@ -7,12 +7,11 @@ import mage.game.Game;
 import mage.game.GameRecorder;
 import mage.player.ai.encoder.ActionEncoder;
 import mage.player.ai.encoder.LabeledState;
+import mage.player.ai.encoder.LabeledStateWriter;
 import mage.player.ai.encoder.StateEncoder;
 import mage.target.Target;
 import org.apache.log4j.Logger;
 
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -151,13 +150,11 @@ public class PlayerRecorder implements GameRecorder {
         }
     }
 
-    @Override
-    public int writeRLData(String outputPath, boolean playerWon, double tdDiscount) {
-        if (stateEncoder.labeledStates.isEmpty()) {
-            return 0;
-        }
-
-        List<LabeledState> states = stateEncoder.labeledStates;
+    /**
+     * Applies TD-discount to a list of labeled states, setting resultLabel on each.
+     * Shared by both PlayerRecorder (human games) and ParallelDataGenerator (bot games).
+     */
+    public static void applyTDDiscount(List<LabeledState> states, boolean playerWon, double tdDiscount) {
         int N = states.size();
         double discountedFuture = playerWon ? 1.0 : -1.0;
         for (int i = N - 1; i >= 0; i--) {
@@ -165,24 +162,25 @@ public class PlayerRecorder implements GameRecorder {
                     + (states.get(i).stateScore * (1 - tdDiscount));
             states.get(i).resultLabel = discountedFuture;
         }
+    }
 
-        try (DataOutputStream out = new DataOutputStream(new FileOutputStream(outputPath))) {
-            out.writeInt(N);
+    @Override
+    public int writeRLData(String outputPath, boolean playerWon, double tdDiscount) {
+        if (stateEncoder.labeledStates.isEmpty()) {
+            return 0;
+        }
+
+        List<LabeledState> states = stateEncoder.labeledStates;
+        applyTDDiscount(states, playerWon, tdDiscount);
+
+        // Write HDF5 in the same CSR format as MageZero training pipeline
+        String hdf5Path = outputPath.endsWith(".hdf5") ? outputPath : outputPath.replace(".bin", ".hdf5");
+        try (LabeledStateWriter writer = new LabeledStateWriter(hdf5Path)) {
             for (LabeledState state : states) {
-                out.writeInt(state.stateVector.size());
-                for (int index : state.stateVector) {
-                    out.writeInt(index);
-                }
-                for (double p : state.actionVector) {
-                    out.writeDouble(p);
-                }
-                out.writeDouble(state.resultLabel);
-                out.writeDouble(state.stateScore);
-                out.writeBoolean(state.isPlayer);
-                out.writeInt(state.actionType.ordinal());
+                writer.writeRecord(state);
             }
-            logger.info("Wrote " + N + " RL training states to " + outputPath);
-            return N;
+            logger.info("Wrote " + states.size() + " RL training states to " + hdf5Path);
+            return states.size();
         } catch (IOException e) {
             logger.error("Failed to write RL training data: " + e.getMessage());
             return -1;
