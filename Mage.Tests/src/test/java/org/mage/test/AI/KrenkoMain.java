@@ -11,14 +11,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class KrenkoMain {
     private static final int GAMES_PER_TEST = 100;
-    private static final int MAX_TURNS = 25;
-    private static final String PLAYER_DECK = "Mage.MageZero/decks/BWBats.dck";
+    private static final int MAX_TURNS = 50;
+    private static final String PLAYER_DECK = "decks/BWBats.dck";
     private static final List<String> DECK_ARRAY = Arrays.asList(
-            "Mage.MageZero/decks/Dimir Midrange.dek",
-            "Mage.MageZero/decks/BWBats.dck",
-            "Mage.MageZero/decks/Jeskai Control.dek",
-            "Mage.MageZero/decks/Mono-Green Landfall.dek",
-            "Mage.MageZero/decks/Mono-Red Aggro.dek"
+            "decks/DimirMidrange.dck",
+            "decks/BWBats.dck",
+            "decks/JeskaiControl.dck",
+            "decks/MonoGLandfall.dck",
+            "decks/MonoRAggro.dck",
+            "decks/IzzetElementals.dck"
     );
     
     public static void main(String[] args) {
