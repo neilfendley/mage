@@ -1,4 +1,4 @@
-# MageZero Roadmap
+# KrenkoBot (MageZero) Roadmap
 
 ## Vision
 Train a high-Elo Magic: The Gathering AI through self-play reinforcement learning (AlphaZero-style), integrate it into the Magic ecosystem, and publish findings.
