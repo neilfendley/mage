@@ -11,7 +11,7 @@ Ensure you have the following installed:
 3.  **Make**: Used to run convenient build and execution commands.
 
 ### Installing Make on Windows
-If you are using Windows, the easiest way to install Make is via [Chocolatey](https://chocolatey.org/):
+If you are using Windows, the easiest way to install Make is via [Chocolatey](https://chocolatey.org/install):
 
 ```powershell
 choco install make
