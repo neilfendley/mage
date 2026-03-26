@@ -26,7 +26,6 @@ import mage.filter.common.FilterCreatureForCombatBlock;
 import mage.filter.predicate.permanent.ControllerIdPredicate;
 import mage.game.Game;
 import mage.game.GameImpl;
-import mage.game.GameRecorder;
 import mage.game.combat.CombatGroup;
 import mage.game.draft.Draft;
 import mage.game.events.DeclareAttackerEvent;
@@ -121,10 +120,6 @@ public class HumanPlayer extends PlayerImpl {
 
     protected boolean holdingPriority;
 
-    // RL training data recording (uses GameRecorder interface to avoid AI module dependency)
-    private transient GameRecorder recorder;
-    private transient int rlCheckpointSize = -1;
-
     protected ConcurrentLinkedQueue<PlayerResponse> actionQueue = new ConcurrentLinkedQueue<>();
     protected ConcurrentLinkedQueue<PlayerResponse> actionQueueSaved = new ConcurrentLinkedQueue<>();
     protected int actionIterations = 0;
@@ -137,16 +132,6 @@ public class HumanPlayer extends PlayerImpl {
         this.human = true;
         this.response = new PlayerResponse();
         initReplacementDialog();
-    }
-
-    @Override
-    public void setRecorder(GameRecorder recorder) {
-        this.recorder = recorder;
-    }
-
-    @Override
-    public GameRecorder getRecorder() {
-        return recorder;
     }
 
     public boolean isRlRecordingEnabled() {
@@ -181,14 +166,6 @@ public class HumanPlayer extends PlayerImpl {
     public HumanPlayer(final HumanPlayer player) {
         super(player);
         this.response = player.response;
-
-        // Preserve recorder across copies/checkpoints.
-        // Shared reference is intentional so states accumulate in one list.
-        // Checkpoint size is saved so undo can trim states added after the checkpoint.
-        this.recorder = player.recorder;
-        if (recorder != null) {
-            this.rlCheckpointSize = recorder.getRecordedStateCount();
-        }
 
         this.replacementEffectChoice = player.replacementEffectChoice;
         this.autoSelectReplacementEffects.addAll(player.autoSelectReplacementEffects);
@@ -1254,7 +1231,6 @@ public class HumanPlayer extends PlayerImpl {
         //for MCTS opponent
         List<ActivatedAbility> playableAbilities = getPlayable(game, true).stream().filter(a -> !(a instanceof ManaAbility)).collect(Collectors.toList());
         if(playableAbilities.isEmpty() && !game.isCheckPoint(playerId)) {//just pass when only option
-            if (recorder != null) recorder.recordPassAction(game, playerId);
             pass(game);
             return false;
         }
@@ -1434,7 +1410,6 @@ public class HumanPlayer extends PlayerImpl {
                 if (response.getBoolean() != null
                         || response.getInteger() != null) {
                     if (!activatingMacro && passWithManaPoolCheck(game)) {
-                        if (recorder != null) recorder.recordPassAction(game, playerId);
                         return false;
                     } else {
                         if (activatingMacro) {
@@ -2372,9 +2347,6 @@ public class HumanPlayer extends PlayerImpl {
     @Override
     public boolean activateAbility(ActivatedAbility ability, Game game) {
         getManaPool().setStock(); // needed for the "mana already in the pool has to be used manually" option
-        if (recorder != null && !ability.isManaAbility()) {
-            recorder.recordActivateAbility(game, playerId, ability);
-        }
         return super.activateAbility(ability, game);
     }
 

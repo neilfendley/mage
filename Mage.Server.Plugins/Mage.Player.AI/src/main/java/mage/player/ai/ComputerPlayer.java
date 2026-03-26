@@ -228,11 +228,15 @@ public class ComputerPlayer extends PlayerImpl {
             getPlayerHistory().targetSequence.add(id);
             return true;
         }
+        Set<Integer> preDecisionState = recorder != null ? recorder.capturePreDecisionState(game, playerId) : null;
         boolean out = makeChoiceHelper(outcome, target, source, game, fromCards);
         if(out) {
             getPlayerHistory().targetSequence.addAll(target.getTargets());
             //if there are still more options that could be optionally chosen. add early stop flag to mirror MCTS logging.
             if(!target.isChoiceCompleted(abilityControllerId, source, game, fromCards)) getPlayerHistory().targetSequence.add(TargetImpl.STOP_CHOOSING);
+            if (preDecisionState != null) {
+                recorder.recordTargetSelections(preDecisionState, target, abilityControllerId, source, game, fromCards, playerId);
+            }
         }
 
         return out;
@@ -853,11 +857,15 @@ public class ComputerPlayer extends PlayerImpl {
 
     @Override
     public boolean chooseUse(Outcome outcome, String message, String secondMessage, String trueText, String falseText, Ability source, Game game) {
+        Set<Integer> preDecisionState = recorder != null ? recorder.capturePreDecisionState(game, playerId) : null;
         // Be proactive! Always use abilities, the evaluation function will decide if it's good or not
         // Otherwise some abilities won't be used by AI like LoseTargetEffect that has "bad" outcome
         // but still is good when targets opponent
         boolean out = outcome != Outcome.AIDontUseIt; // Added for Desecration Demon sacrifice ability
         getPlayerHistory().useSequence.add(out);
+        if (preDecisionState != null) {
+            recorder.recordChooseUse(preDecisionState, out, playerId);
+        }
         return out;
     }
     public boolean chooseFallback(Outcome outcome, Choice choice, Game game) {
@@ -933,15 +941,23 @@ public class ComputerPlayer extends PlayerImpl {
 
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
+        Set<Integer> preDecisionState = recorder != null ? recorder.capturePreDecisionState(game, playerId) : null;
 
         if (choice.getMessage() != null && (choice.getMessage().equalsIgnoreCase("Choose creature type") || choice.getMessage().equalsIgnoreCase("Choose a creature type"))) {
-            return  chooseCreatureType(outcome, choice, game);
+            boolean out = chooseCreatureType(outcome, choice, game);
+            if (preDecisionState != null && choice.getChoice() != null) {
+                recorder.recordMakeChoice(preDecisionState, choice.getChoice(), playerId);
+            }
+            return out;
         }
         if(outcome.equals(Outcome.PutManaInPool) || choice.getChoices().size() == 1) {
             //return chooseHelper(outcome, choice, game);
         }
         boolean out = chooseHelper(outcome, choice, game);
         if(choice.getChoice() != null) getPlayerHistory().choiceSequence.add(choice.getChoice());
+        if (preDecisionState != null && choice.getChoice() != null) {
+            recorder.recordMakeChoice(preDecisionState, choice.getChoice(), playerId);
+        }
         return out;
     }
 

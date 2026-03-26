@@ -60,23 +60,24 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
             return;
         }
 
-        // Attach recorders to any human player whose opponent is a bot
+        // Attach recorders to both players so any two-player game can produce training data
         for (Player player : game.getPlayers().values()) {
-            if (player.isHuman() && player.getRecorder() == null) {
-                // Find an AI opponent
-                for (UUID opponentId : game.getOpponents(player.getId())) {
-                    Player opponent = game.getPlayer(opponentId);
-                    if (opponent != null && opponent.isComputer()) {
-                        GameRecorder recorder = GameRecorder.Factory.create(player.getId(), opponentId);
-                        if (recorder != null) {
-                            player.setRecorder(recorder);
-                            logger.info("RL recording enabled for human player: " + player.getName()
-                                    + " (vs " + opponent.getName() + ")");
-                        } else {
-                            logger.warn("RL recording factory not registered — is mage-player-ai loaded?");
-                        }
-                        break;
-                    }
+            if (player.getRecorder() != null) {
+                continue;
+            }
+
+            Player opponent = game.getPlayers().values().stream()
+                    .filter(other -> !other.getId().equals(player.getId()))
+                    .findFirst()
+                    .orElse(null);
+            if (opponent != null) {
+                GameRecorder recorder = GameRecorder.Factory.create(player.getId(), opponent.getId());
+                if (recorder != null) {
+                    player.setRecorder(recorder);
+                    logger.info("RL recording enabled for player: " + player.getName()
+                            + " (vs " + opponent.getName() + ")");
+                } else {
+                    logger.warn("RL recording factory not registered — is mage-player-ai loaded?");
                 }
             }
         }

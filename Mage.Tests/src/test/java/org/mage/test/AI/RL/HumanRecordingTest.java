@@ -12,12 +12,14 @@ import mage.game.*;
 import mage.game.match.Match;
 import mage.game.match.MatchOptions;
 import mage.game.mulligan.MulliganType;
+import mage.player.ai.ComputerPlayer;
 import mage.player.ai.ComputerPlayerMCTS2;
 import mage.player.ai.encoder.ActionEncoder;
 import mage.player.ai.encoder.LabeledState;
 import mage.player.ai.encoder.StateEncoder;
 import mage.player.ai.recorder.PlayerRecorder;
 import mage.player.human.HumanPlayer;
+import mage.players.Player;
 import org.junit.jupiter.api.*;
 
 import ch.systemsx.cisd.hdf5.HDF5Factory;
@@ -542,7 +544,7 @@ public class HumanRecordingTest {
     // === Integration test: full game-end data collection path ===
 
     /** Helper to set up a game with two players for integration tests. */
-    private Game createTestGame(HumanPlayer playerA, HumanPlayer playerB) throws Exception {
+    private Game createTestGame(Player playerA, Player playerB) throws Exception {
         MatchOptions matchOptions = new MatchOptions("test", "test", false);
         Match match = new TwoPlayerMatch(matchOptions);
         Game game = new TwoPlayerDuel(
@@ -613,6 +615,32 @@ public class HumanRecordingTest {
         // Clean up
         outputFile.delete();
         tempDir.toFile().delete();
+    }
+
+    @Test
+    void testDataCollectorAttachesRecordersForHumanVsHumanGames() throws Exception {
+        HumanPlayer playerA = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
+        HumanPlayer playerB = new HumanPlayer("PlayerB", RangeOfInfluence.ONE, 1);
+        Game game = createTestGame(playerA, playerB);
+
+        RLTrainingDataCollector collector = new RLTrainingDataCollector();
+        collector.onGameStart(game);
+
+        assertNotNull(playerA.getRecorder(), "Recorder should be attached for player A");
+        assertNotNull(playerB.getRecorder(), "Recorder should be attached for player B");
+    }
+
+    @Test
+    void testDataCollectorAttachesRecordersForBotVsBotGames() throws Exception {
+        ComputerPlayer playerA = new ComputerPlayer("BotA", RangeOfInfluence.ONE);
+        ComputerPlayer playerB = new ComputerPlayer("BotB", RangeOfInfluence.ONE);
+        Game game = createTestGame(playerA, playerB);
+
+        RLTrainingDataCollector collector = new RLTrainingDataCollector();
+        collector.onGameStart(game);
+
+        assertNotNull(playerA.getRecorder(), "Recorder should be attached for bot A");
+        assertNotNull(playerB.getRecorder(), "Recorder should be attached for bot B");
     }
 
     @Test

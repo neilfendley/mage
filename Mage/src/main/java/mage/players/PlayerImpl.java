@@ -191,6 +191,8 @@ public abstract class PlayerImpl implements Player, Serializable {
 
     protected UserData userData;
     protected MatchPlayer matchPlayer;
+    protected transient GameRecorder recorder;
+    protected transient int rlCheckpointSize = -1;
 
 
     protected List<Designation> designations = new ArrayList<>();
@@ -306,9 +308,23 @@ public abstract class PlayerImpl implements Player, Serializable {
         this.payManaMode = player.payManaMode;
         this.phyrexianColors = player.getPhyrexianColors() != null ? player.phyrexianColors.copy() : null;
         this.designations = CardUtil.deepCopyObject(player.designations);
+        this.recorder = player.recorder;
+        if (recorder != null) {
+            this.rlCheckpointSize = recorder.getRecordedStateCount();
+        }
     }
     public PlayerScript getPlayerHistory() {
         return playerHistory;
+    }
+
+    @Override
+    public GameRecorder getRecorder() {
+        return recorder;
+    }
+
+    @Override
+    public void setRecorder(GameRecorder recorder) {
+        this.recorder = recorder;
     }
 
     /**
@@ -418,6 +434,9 @@ public abstract class PlayerImpl implements Player, Serializable {
         for (Designation object : player.getDesignations()) {
             this.designations.add(object.copy());
         }
+
+        this.recorder = player.getRecorder();
+        this.rlCheckpointSize = recorder != null ? recorder.getRecordedStateCount() : -1;
 
         // Don't restore!
         // this.storedBookmark
@@ -1642,6 +1661,9 @@ public abstract class PlayerImpl implements Player, Serializable {
             logger.error("activating null ability");
             return false;
         }
+        boolean shouldRecordActivation = recorder != null
+                && !(ability instanceof PassAbility)
+                && !ability.isManaAbility();
         //logger.info("last activated: " + (lastActivated == null ? "null" : this.lastActivated.toString()));
 
         boolean result;
@@ -1719,6 +1741,9 @@ public abstract class PlayerImpl implements Player, Serializable {
         //if player has taken an action then reset all player passed flags
         justActivatedType = null;
         if (result) {
+            if (shouldRecordActivation) {
+                recorder.recordActivateAbility(game, playerId, ability);
+            }
             if (isHuman() && (ability.getAbilityType() == AbilityType.SPELL || ability.getAbilityType().isActivatedAbility())) {
                 if (ability.isUsesStack()) { // if the ability does not use the stack (e.g. Suspend) auto pass would go to next phase unintended
                     setJustActivatedType(ability.getAbilityType());
@@ -2634,6 +2659,9 @@ public abstract class PlayerImpl implements Player, Serializable {
 
     @Override
     public void pass(Game game) {
+        if (recorder != null) {
+            recorder.recordPassAction(game, playerId);
+        }
         getPlayerHistory().prioritySequence.add(new PassAbility());
         this.passed = true;
         resetStoredBookmark(game);
