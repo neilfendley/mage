@@ -22,6 +22,8 @@ Train a high-Elo Magic: The Gathering AI through self-play reinforcement learnin
 - [ ] **Curriculum design** — Which decks/matchups to train on and in what order
 - [ ] **Hyperparameter tuning** — Search budget, TD-discount, learning rate schedules, network size
 - [ ] **Baseline benchmarks** — Measure current minimax bot strength; track RL model improvement over time
+- [ ] **Shared Data Location** - We need a shared repository to share model weights and game recordings that people can easily upload to
+
 
 ### 2. Performance & Scale
 **Goal:** Generate training data fast enough to iterate quickly.
