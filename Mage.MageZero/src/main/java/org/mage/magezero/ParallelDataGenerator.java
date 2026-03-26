@@ -28,8 +28,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -65,6 +68,7 @@ public class ParallelDataGenerator {
 
 
     protected static Logger logger = Logger.getLogger(ParallelDataGenerator.class);
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
 
 
@@ -123,8 +127,10 @@ public class ParallelDataGenerator {
      * test function to run a single game for debugging purposes without saving any data.
      */
     public void test_single_game(long seed) {
+        String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
         logger.info("\n=========================================");
         logger.info("       RUNNING SINGLE DEBUG GAME         ");
+        logger.info("Test timestamp: " + timestamp);
         logger.info("=========================================");
         loadAllFiles();
         ComputerPlayerMCTS2.SHOW_THREAD_INFO = true;
@@ -142,9 +148,8 @@ public class ParallelDataGenerator {
 
     }
     public void generateData() {
-
-
-
+        String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
+        
         loadAllFiles();
         ComputerPlayerMCTS2.SHOW_THREAD_INFO = true;
         LabeledStateWriter fwA;
@@ -154,12 +159,24 @@ public class ParallelDataGenerator {
         deckNameA = extractDeckName(Config.INSTANCE.playerA.deckPath);
         deckNameB = extractDeckName(Config.INSTANCE.playerB.deckPath);
 
+        // Create timestamped subdirectories
+        String timestampedDirA = Config.INSTANCE.playerA.outputDir + "/" + timestamp;
+        String timestampedDirB = Config.INSTANCE.playerB.outputDir + "/" + timestamp;
+        
+        try {
+            Files.createDirectories(Paths.get(timestampedDirA));
+            Files.createDirectories(Paths.get(timestampedDirB));
+        } catch (IOException e) {
+            logger.error("Failed to create timestamped output directories", e);
+            throw new RuntimeException(e);
+        }
+
         String fileA = deckNameA + "_vs_" + deckNameB + ".hdf5";
         String fileB = deckNameB + "_vs_" + deckNameA + ".hdf5";
 
         try {
-            fwA = new LabeledStateWriter(Config.INSTANCE.playerA.outputDir + "/" + fileA);
-            fwB = new LabeledStateWriter(Config.INSTANCE.playerB.outputDir + "/" + fileB);
+            fwA = new LabeledStateWriter(timestampedDirA + "/" + fileA);
+            fwB = new LabeledStateWriter(timestampedDirB + "/" + fileB);
             writer = getThread(fwA, fwB);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -169,6 +186,9 @@ public class ParallelDataGenerator {
 
         logger.info("=========================================");
         logger.info("   STARTING DATA GENERATION     ");
+        logger.info("Run timestamp: " + timestamp);
+        logger.info("Output directory A: " + timestampedDirA);
+        logger.info("Output directory B: " + timestampedDirB);
         logger.info("=========================================");
 
 

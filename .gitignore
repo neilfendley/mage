@@ -78,3 +78,7 @@ Mage.Tests/testing.bin
 *.hdf5
 *.png
 /plugins/images
+
+# build targets
+/deploy
+/temp
