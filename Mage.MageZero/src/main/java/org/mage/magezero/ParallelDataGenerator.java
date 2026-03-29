@@ -149,8 +149,9 @@ public class ParallelDataGenerator {
 
     }
     public void generateData() {
+        PerfStats.reset();
         String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
-        
+
         loadAllFiles();
         ComputerPlayerMCTS2.SHOW_THREAD_INFO = true;
         LabeledStateWriter fwA;

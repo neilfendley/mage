@@ -1991,18 +1991,7 @@ public final class CardUtil {
         if (isImmutableObject(value)) {
             return value;
         }
-        // Fast-path: empty collections don't need element-by-element copying
-        if (value instanceof Collection && ((Collection<?>) value).isEmpty()) {
-            if (value instanceof LinkedHashSet) return (T) new LinkedHashSet<>(0);
-            if (value instanceof HashSet) return (T) new HashSet<>(0);
-            if (value instanceof ArrayList) return (T) new ArrayList<>(0);
-            if (value instanceof TreeSet) return (T) new TreeSet<>();
-        }
-        if (value instanceof Map && ((Map<?, ?>) value).isEmpty()) {
-            if (value instanceof LinkedHashMap) return (T) new LinkedHashMap<>(0);
-            if (value instanceof HashMap) return (T) new HashMap<>(0);
-            if (value instanceof EnumMap) return (T) ((EnumMap) value).clone();
-        }
+        // XMage types (CardsImpl, Counters, etc.) must use their own copy() first
         if (value instanceof Copyable) {
             return (T) ((Copyable<T>) value).copy();
         } else if (value instanceof Watcher) {
@@ -2015,7 +2004,19 @@ public final class CardUtil {
             return (T) ((EnumSet) value).clone();
         } else if (value instanceof EnumMap) {
             return (T) deepCopyEnumMap((EnumMap) value);
-        } else if (value instanceof LinkedHashSet) {
+        }
+        // Fast-path: empty plain JDK collections (safe here — XMage Copyable types handled above)
+        if (value instanceof Collection && ((Collection<?>) value).isEmpty()) {
+            if (value instanceof LinkedHashSet) return (T) new LinkedHashSet<>(0);
+            if (value instanceof HashSet) return (T) new HashSet<>(0);
+            if (value instanceof ArrayList) return (T) new ArrayList<>(0);
+            if (value instanceof TreeSet) return (T) new TreeSet<>();
+        }
+        if (value instanceof Map && ((Map<?, ?>) value).isEmpty()) {
+            if (value instanceof LinkedHashMap) return (T) new LinkedHashMap<>(0);
+            if (value instanceof HashMap) return (T) new HashMap<>(0);
+        }
+        if (value instanceof LinkedHashSet) {
             return (T) deepCopyLinkedHashSet((LinkedHashSet) value);
         } else if (value instanceof LinkedHashMap) {
             return (T) deepCopyLinkedHashMap((LinkedHashMap) value);
