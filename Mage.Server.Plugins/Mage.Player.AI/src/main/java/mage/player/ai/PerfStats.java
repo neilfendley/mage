@@ -42,25 +42,21 @@ public class PerfStats {
         long evaluateMs = evaluateNs.get() / 1_000_000;
         long expandMs = expandNs.get() / 1_000_000;
         long encodeMs = stateEncodeNs.get() / 1_000_000;
-        // stateEncode is nested inside validateState, so subtract to avoid double-counting
-        long gameCopyMs = validateMs - encodeMs;
-        long accountedMs = gameCopyMs + encodeMs + evaluateMs + expandMs;
+        long otherMs = totalGameMs - validateMs - evaluateMs - expandMs;
 
         logger.info("=== PERFORMANCE SUMMARY ===");
         logger.info(String.format("Games: %d, Total game time: %.1fs, Avg: %.1fs/game",
                 games, totalGameMs / 1000.0, totalGameMs / 1000.0 / games));
-        logger.info(String.format("  validateState:  %6dms (%4.1f%%) — %d calls, %.1fms/call (total incl. stateEncode)",
+        logger.info(String.format("  validateState:  %6dms (%4.1f%%) — %d calls, %.1fms/call",
                 validateMs, pct(validateMs, totalGameMs), validateStateCount.get(), avg(validateMs, validateStateCount.get())));
-        logger.info(String.format("    gameCopy:     %6dms (%4.1f%%) — game state deep copy + replay",
-                gameCopyMs, pct(gameCopyMs, totalGameMs)));
-        logger.info(String.format("    stateEncode:  %6dms (%4.1f%%) — %d calls, %.1fms/call",
-                encodeMs, pct(encodeMs, totalGameMs), stateEncodeCount.get(), avg(encodeMs, stateEncodeCount.get())));
         logger.info(String.format("  evaluate:       %6dms (%4.1f%%) — %d calls, %.1fms/call",
                 evaluateMs, pct(evaluateMs, totalGameMs), evaluateCount.get(), avg(evaluateMs, evaluateCount.get())));
         logger.info(String.format("  expand:         %6dms (%4.1f%%) — %d calls, %.1fms/call",
                 expandMs, pct(expandMs, totalGameMs), expandCount.get(), avg(expandMs, expandCount.get())));
-        logger.info(String.format("  other:          %6dms (%4.1f%%)",
-                totalGameMs - accountedMs, pct(totalGameMs - accountedMs, totalGameMs)));
+        logger.info(String.format("  other:          %6dms (%4.1f%%) — minimax opponent, game engine, GC",
+                otherMs, pct(otherMs, totalGameMs)));
+        logger.info(String.format("  (stateEncode:   %6dms — %d calls, %.1fms/call — partially overlaps validateState)",
+                encodeMs, stateEncodeCount.get(), avg(encodeMs, stateEncodeCount.get())));
     }
 
     private static double pct(long part, long total) {
