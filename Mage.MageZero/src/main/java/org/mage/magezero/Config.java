@@ -53,6 +53,7 @@ public class Config {
         public String deckPath;
         public String type;
         public String outputDir;
+        public int skill = 6;
         public final PriorsConfig priors;
         public final NoiseConfig noise;
         public final MctsConfig mcts;

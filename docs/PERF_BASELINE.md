@@ -51,8 +51,23 @@ At budget=100, 4 threads (representative config):
 
 5. **Quick win: use fewer threads** — On an 8-core machine, THREADS=2 gives the best throughput per core. For maximizing total games/hour, match thread count to physical core count minus 2 (leave room for OS/GC).
 
-## Optimization Priority
+## Minimax Skill Level Scaling (THREADS=2, BUDGET=100, GAMES=5)
 
-1. **Optimize validateState** — Incremental game state updates, copy-on-write, or structural sharing could reduce the 2.5ms/call cost dramatically.
+| Skill | Avg/game | Wall clock | Minimax depth | other/overhead |
+|-------|----------|------------|---------------|----------------|
+| 6     | 29.2s    | 1m 22s     | 6             | 23.2%          |
+| 3     | 13.9s    | 0m 42s     | 4             | -1.0%          |
+
+**Observation:** Reducing minimax skill from 6 to 3 cuts game time in half. At skill=3, the minimax opponent is essentially free — all time is in MCTS search. For data generation where opponent quality matters less than throughput, skill=3 is a good default.
+
+## Quick Wins (No Architecture Changes)
+
+1. **Use THREADS=2** on 8-core machines (best per-game throughput)
+2. **Use SKILL=3** for minimax opponent (2x faster, opponent still plays reasonably)
+3. **Combined: `make run-krenko THREADS=2 SKILL=3`** — ~4x faster than default settings
+
+## Optimization Priority (Architecture Changes)
+
+1. **Optimize validateState** — Incremental game state updates, copy-on-write, or structural sharing could reduce the 1.7ms/call cost dramatically.
 2. **Optimize stateEncode** — Cache encoded features, avoid redundant string operations, reduce HashMap overhead.
 3. **Parallel MCTS within a game** — Would let each game use multiple cores productively instead of adding more concurrent games.

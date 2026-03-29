@@ -16,6 +16,7 @@ public class KrenkoMain {
     private static final int MAX_TURNS = Integer.getInteger("krenko.maxTurns", 25);
     private static final int THREADS = Integer.getInteger("krenko.threads", 10);
     private static final int SEARCH_BUDGET = Integer.getInteger("krenko.searchBudget", 1000);
+    private static final int MINIMAX_SKILL = Integer.getInteger("krenko.minimaxSkill", 6);
     private static final String PLAYER_DECK = System.getProperty("krenko.deck", "decks/IzzetElementals.dck");
     private static final List<String> DECK_ARRAY = Arrays.asList(
             "decks/DimirMidrange.dck",
@@ -46,6 +47,7 @@ public class KrenkoMain {
                 Config.INSTANCE.training.maxTurns = MAX_TURNS;
                 Config.INSTANCE.training.threads = THREADS;
                 Config.INSTANCE.playerA.mcts.searchBudget = SEARCH_BUDGET;
+                Config.INSTANCE.playerB.skill = MINIMAX_SKILL;
                 try {
                     ParallelDataGenerator generator = new ParallelDataGenerator();
                     generator.generateData();

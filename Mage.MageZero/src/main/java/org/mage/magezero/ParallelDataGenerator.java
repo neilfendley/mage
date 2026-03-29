@@ -505,25 +505,13 @@ public class ParallelDataGenerator {
     }
     // This is the correct override to use for choosing our AI types.
     protected Player createPlayer(String name, RangeOfInfluence rangeOfInfluence) {
-        if (name.equals("PlayerA")) {
-            if(Config.INSTANCE.playerA.type.equals("minimax")) {
-                ComputerPlayer8 t8 = new ComputerPlayer8(name, RangeOfInfluence.ONE, 6);
-                return t8;
-            }
-            if(Config.INSTANCE.playerA.type.equals("mcts")) {
-                ComputerPlayerMCTS2 mcts2 = new ComputerPlayerMCTS2(name, RangeOfInfluence.ONE, 6);
-                return mcts2;
-            }
-
-        } else {
-            if(Config.INSTANCE.playerB.type.equals("minimax")) {
-                ComputerPlayer8 t8 = new ComputerPlayer8(name, RangeOfInfluence.ONE, 6);
-                return t8;
-            }
-            if(Config.INSTANCE.playerB.type.equals("mcts")) {
-                ComputerPlayerMCTS2 mcts2 = new ComputerPlayerMCTS2(name, RangeOfInfluence.ONE, 6);
-                return mcts2;
-            }
+        Config.PlayerConfig cfg = name.equals("PlayerA") ? Config.INSTANCE.playerA : Config.INSTANCE.playerB;
+        int skill = cfg.skill;
+        if (cfg.type.equals("minimax")) {
+            return new ComputerPlayer8(name, RangeOfInfluence.ONE, skill);
+        }
+        if (cfg.type.equals("mcts")) {
+            return new ComputerPlayerMCTS2(name, RangeOfInfluence.ONE, skill);
         }
         logger.error("unsupported player type");
         return null;

@@ -40,6 +40,7 @@ TESTS   ?= 4
 TURNS   ?= 25
 THREADS ?= 10
 BUDGET  ?= 1000
+SKILL   ?= 6
 DECK    ?= decks/IzzetElementals.dck
 
 .PHONY: run-krenko
@@ -52,6 +53,7 @@ run-krenko:
 		-Dkrenko.maxTurns=$(TURNS) \
 		-Dkrenko.threads=$(THREADS) \
 		-Dkrenko.searchBudget=$(BUDGET) \
+		-Dkrenko.minimaxSkill=$(SKILL) \
 		-Dkrenko.deck=$(DECK)
 
 .PHONY: run-server
