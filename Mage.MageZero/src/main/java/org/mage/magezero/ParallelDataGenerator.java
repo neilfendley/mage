@@ -14,6 +14,7 @@ import mage.game.mulligan.MulliganType;
 import mage.player.ai.*;
 import mage.player.ai.encoder.FeatureMap;
 import mage.player.ai.encoder.Features;
+import mage.player.ai.PerfStats;
 import mage.player.ai.encoder.LabeledState;
 import mage.player.ai.encoder.LabeledStateWriter;
 import mage.player.ai.encoder.StateEncoder;
@@ -211,7 +212,7 @@ public class ParallelDataGenerator {
                     deckNameB + ": " + winCount.get() * 1.0 / gameCount.get() + " in " + gameCount.get() + " games");
         }
 
-
+        PerfStats.printSummary();
     }
 
     @NotNull
@@ -354,7 +355,10 @@ public class ParallelDataGenerator {
                     game.setStartingPlayerId(playerB.getId());
                 }
             }
+            long _gameStart = System.nanoTime();
             game.start(null);
+            PerfStats.gameTimeNs.addAndGet(System.nanoTime() - _gameStart);
+            PerfStats.gameCount.incrementAndGet();
             boolean playerAWon = playerA.hasWon();
             //merge to the final features
             synchronized (seenFeatures) {

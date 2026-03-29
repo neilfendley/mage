@@ -95,8 +95,8 @@ public class Config {
     }
 
     public static class MctsConfig {
-        public final int searchBudget;
-        public final int timeoutMs;
+        public int searchBudget;
+        public int timeoutMs;
         public final double tdDiscount;
         public final boolean offlineMode;
 
