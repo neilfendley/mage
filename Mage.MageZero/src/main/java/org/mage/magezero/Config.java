@@ -53,6 +53,7 @@ public class Config {
         public String deckPath;
         public String type;
         public String outputDir;
+        public int skill;
         public final PriorsConfig priors;
         public final NoiseConfig noise;
         public final MctsConfig mcts;
@@ -64,6 +65,7 @@ public class Config {
             this.deckPath = (String) raw.get("deckPath");
             this.type = (String) raw.getOrDefault("type", "mcts");
             this.outputDir = (String) raw.getOrDefault("output_dir", "data/");
+            this.skill = ((Number) raw.getOrDefault("skill", 6)).intValue();
             this.priors = new PriorsConfig((Map<String, Object>) raw.getOrDefault("priors", Collections.emptyMap()));
             this.noise = new NoiseConfig((Map<String, Object>) raw.getOrDefault("noise", Collections.emptyMap()));
             this.mcts = new MctsConfig((Map<String, Object>) raw.getOrDefault("mcts", Collections.emptyMap()));
@@ -95,8 +97,8 @@ public class Config {
     }
 
     public static class MctsConfig {
-        public final int searchBudget;
-        public final int timeoutMs;
+        public int searchBudget;
+        public int timeoutMs;
         public final double tdDiscount;
         public final boolean offlineMode;
 

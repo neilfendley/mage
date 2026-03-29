@@ -14,6 +14,7 @@ import mage.game.mulligan.MulliganType;
 import mage.player.ai.*;
 import mage.player.ai.encoder.FeatureMap;
 import mage.player.ai.encoder.Features;
+import mage.player.ai.PerfStats;
 import mage.player.ai.encoder.LabeledState;
 import mage.player.ai.encoder.LabeledStateWriter;
 import mage.player.ai.encoder.StateEncoder;
@@ -148,8 +149,9 @@ public class ParallelDataGenerator {
 
     }
     public void generateData() {
+        PerfStats.reset();
         String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
-        
+
         loadAllFiles();
         ComputerPlayerMCTS2.SHOW_THREAD_INFO = true;
         LabeledStateWriter fwA;
@@ -211,7 +213,7 @@ public class ParallelDataGenerator {
                     deckNameB + ": " + winCount.get() * 1.0 / gameCount.get() + " in " + gameCount.get() + " games");
         }
 
-
+        PerfStats.printSummary();
     }
 
     @NotNull
@@ -354,7 +356,10 @@ public class ParallelDataGenerator {
                     game.setStartingPlayerId(playerB.getId());
                 }
             }
+            long _gameStart = System.nanoTime();
             game.start(null);
+            PerfStats.gameTimeNs.addAndGet(System.nanoTime() - _gameStart);
+            PerfStats.gameCount.incrementAndGet();
             boolean playerAWon = playerA.hasWon();
             //merge to the final features
             synchronized (seenFeatures) {
@@ -501,25 +506,13 @@ public class ParallelDataGenerator {
     }
     // This is the correct override to use for choosing our AI types.
     protected Player createPlayer(String name, RangeOfInfluence rangeOfInfluence) {
-        if (name.equals("PlayerA")) {
-            if(Config.INSTANCE.playerA.type.equals("minimax")) {
-                ComputerPlayer8 t8 = new ComputerPlayer8(name, RangeOfInfluence.ONE, 6);
-                return t8;
-            }
-            if(Config.INSTANCE.playerA.type.equals("mcts")) {
-                ComputerPlayerMCTS2 mcts2 = new ComputerPlayerMCTS2(name, RangeOfInfluence.ONE, 6);
-                return mcts2;
-            }
-
-        } else {
-            if(Config.INSTANCE.playerB.type.equals("minimax")) {
-                ComputerPlayer8 t8 = new ComputerPlayer8(name, RangeOfInfluence.ONE, 6);
-                return t8;
-            }
-            if(Config.INSTANCE.playerB.type.equals("mcts")) {
-                ComputerPlayerMCTS2 mcts2 = new ComputerPlayerMCTS2(name, RangeOfInfluence.ONE, 6);
-                return mcts2;
-            }
+        Config.PlayerConfig cfg = name.equals("PlayerA") ? Config.INSTANCE.playerA : Config.INSTANCE.playerB;
+        int skill = cfg.skill;
+        if (cfg.type.equals("minimax")) {
+            return new ComputerPlayer8(name, RangeOfInfluence.ONE, skill);
+        }
+        if (cfg.type.equals("mcts")) {
+            return new ComputerPlayerMCTS2(name, RangeOfInfluence.ONE, skill);
         }
         logger.error("unsupported player type");
         return null;

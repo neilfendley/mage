@@ -34,11 +34,27 @@ install: clean build
 # JVM --add-opens flags for Java 17+ are in .mvn/jvm.config
 # (auto-loaded by Maven on all platforms)
 
+# KrenkoMain config (override with: make run-krenko GAMES=5 THREADS=4)
+GAMES   ?= 30
+TESTS   ?= 4
+TURNS   ?= 25
+THREADS ?= 10
+BUDGET  ?= 1000
+SKILL   ?= 6
+DECK    ?= decks/IzzetElementals.dck
+
 .PHONY: run-krenko
 run-krenko:
 	mvn -pl Mage.Tests exec:java \
 		-Dexec.mainClass="org.mage.test.AI.KrenkoMain" \
-		-Dexec.classpathScope=test
+		-Dexec.classpathScope=test \
+		-Dkrenko.games=$(GAMES) \
+		-Dkrenko.tests=$(TESTS) \
+		-Dkrenko.maxTurns=$(TURNS) \
+		-Dkrenko.threads=$(THREADS) \
+		-Dkrenko.searchBudget=$(BUDGET) \
+		-Dkrenko.minimaxSkill=$(SKILL) \
+		-Dkrenko.deck=$(DECK)
 
 .PHONY: run-server
 run-server:

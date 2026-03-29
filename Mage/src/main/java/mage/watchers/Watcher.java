@@ -19,6 +19,10 @@ public abstract class Watcher implements Serializable {
 
     private static final Logger logger = Logger.getLogger(Watcher.class);
 
+    // Cache reflection metadata per watcher class to avoid repeated lookups during copy()
+    private static final Map<Class<?>, Constructor<?>> CONSTRUCTOR_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<Class<?>, Field[]> FIELD_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
     protected UUID controllerId;
     protected UUID sourceId;
     protected boolean condition;
@@ -80,39 +84,62 @@ public abstract class Watcher implements Serializable {
 
     public <T extends Watcher> T copy() {
         try {
-            //use getDeclaredConstructors to allow for package-private constructors (i.e. omit public)
-            List<?> constructors = Arrays.asList(this.getClass().getDeclaredConstructors());
-            if (constructors.size() > 1) {
-                logger.error(getClass().getSimpleName() + " has multiple constructors");
-                return null;
+            Class<?> clazz = this.getClass();
+
+            // Cache constructor lookup
+            Constructor<?> constructor = CONSTRUCTOR_CACHE.get(clazz);
+            if (constructor == null) {
+                Constructor<?>[] constructors = clazz.getDeclaredConstructors();
+                if (constructors.length > 1) {
+                    logger.error(clazz.getSimpleName() + " has multiple constructors");
+                    return null;
+                }
+                constructor = constructors[0];
+                constructor.setAccessible(true);
+                CONSTRUCTOR_CACHE.put(clazz, constructor);
             }
 
-            Constructor<? extends Watcher> constructor = (Constructor<? extends Watcher>) constructors.get(0);
-
-            // collect all fields
-            constructor.setAccessible(true);
+            // Instantiate with default args
             Object[] args = new Object[constructor.getParameterCount()];
             for (int index = 0; index < constructor.getParameterTypes().length; index++) {
                 Class<?> parameterType = constructor.getParameterTypes()[index];
                 if (parameterType.isPrimitive()) {
-                    if (parameterType.getSimpleName().equalsIgnoreCase("boolean")) {
+                    if (parameterType == boolean.class) {
                         args[index] = false;
+                    } else {
+                        args[index] = 0;
                     }
-                } else {
-                    args[index] = null;
                 }
-
             }
             T watcher = (T) constructor.newInstance(args);
-            List<Field> allFields = new ArrayList<>();
-            allFields.addAll(Arrays.asList(getClass().getDeclaredFields()));
-            allFields.addAll(Arrays.asList(getClass().getSuperclass().getDeclaredFields()));
 
-            // copy field's values
-            for (Field field : allFields) {
-                if (!Modifier.isStatic(field.getModifiers())) {
-                    field.setAccessible(true);
-                    field.set(watcher, CardUtil.deepCopyObject(field.get(this)));
+            // Cache field lookup (filtered to non-static, pre-accessible)
+            Field[] fields = FIELD_CACHE.get(clazz);
+            if (fields == null) {
+                List<Field> allFields = new ArrayList<>();
+                for (Field f : clazz.getDeclaredFields()) {
+                    if (!Modifier.isStatic(f.getModifiers())) {
+                        f.setAccessible(true);
+                        allFields.add(f);
+                    }
+                }
+                for (Field f : clazz.getSuperclass().getDeclaredFields()) {
+                    if (!Modifier.isStatic(f.getModifiers())) {
+                        f.setAccessible(true);
+                        allFields.add(f);
+                    }
+                }
+                fields = allFields.toArray(new Field[0]);
+                FIELD_CACHE.put(clazz, fields);
+            }
+
+            // Copy field values
+            for (Field field : fields) {
+                Object val = field.get(this);
+                if (val == null) {
+                    field.set(watcher, null);
+                } else {
+                    field.set(watcher, CardUtil.deepCopyObject(val));
                 }
             }
             return watcher;
