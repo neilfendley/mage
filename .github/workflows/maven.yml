@@ -29,3 +29,5 @@ jobs:
         cache: maven
     - name: Build with Maven
       run: mvn install -B -DskipTests
+    - name: Run RL tests
+      run: mvn test -pl Mage.Tests -B -Dtest="org.mage.test.AI.RL.HumanRecordingTest,org.mage.test.AI.RL.TxtToDckConversionTest"
