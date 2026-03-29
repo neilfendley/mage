@@ -1990,7 +1990,20 @@ public final class CardUtil {
     public static <T> T deepCopyObject(T value) {
         if (isImmutableObject(value)) {
             return value;
-        } else if (value instanceof Copyable) {
+        }
+        // Fast-path: empty collections don't need element-by-element copying
+        if (value instanceof Collection && ((Collection<?>) value).isEmpty()) {
+            if (value instanceof LinkedHashSet) return (T) new LinkedHashSet<>(0);
+            if (value instanceof HashSet) return (T) new HashSet<>(0);
+            if (value instanceof ArrayList) return (T) new ArrayList<>(0);
+            if (value instanceof TreeSet) return (T) new TreeSet<>();
+        }
+        if (value instanceof Map && ((Map<?, ?>) value).isEmpty()) {
+            if (value instanceof LinkedHashMap) return (T) new LinkedHashMap<>(0);
+            if (value instanceof HashMap) return (T) new HashMap<>(0);
+            if (value instanceof EnumMap) return (T) ((EnumMap) value).clone();
+        }
+        if (value instanceof Copyable) {
             return (T) ((Copyable<T>) value).copy();
         } else if (value instanceof Watcher) {
             return (T) ((Watcher) value).copy();
