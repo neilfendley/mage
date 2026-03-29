@@ -17,7 +17,7 @@
 
         <!-- TODO: research and optimize version in modules (version change for modules and server configs must be changeable by one line instead perl script -->
         <mage-version>1.4.58</mage-version>
-        <argLine>-Dfile.encoding=UTF-8 -da:ch.systemsx.cisd... --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens jdk.unsupported/sun.misc=ALL-UNNAMED --enable-native-access=ALL-UNNAMED</argLine>
+        <argLine>-Dfile.encoding=UTF-8 --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens jdk.unsupported/sun.misc=ALL-UNNAMED</argLine>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
 
