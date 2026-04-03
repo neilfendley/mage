@@ -1,5 +1,6 @@
 package mage.player.ai.encoder;
 
+import mage.player.ai.PerfStats;
 import mage.MageObject;
 import mage.abilities.*;
 import mage.abilities.costs.Cost;
@@ -566,6 +567,7 @@ public class StateEncoder {
      * @return set of active indices in the sparse binary vector
      */
     public synchronized Set<Integer> processState(Game game, UUID decisionPlayerId, ActionEncoder.ActionType decisionType, String decisionsText) {
+        long _t0 = System.nanoTime();
         features.stateRefresh();
         featureVector.clear();
 
@@ -598,6 +600,8 @@ public class StateEncoder {
         processPlayer(game, opponentId, decisionPlayerId, opponentFeatures);
 
 
+        PerfStats.stateEncodeNs.addAndGet(System.nanoTime() - _t0);
+        PerfStats.stateEncodeCount.incrementAndGet();
         return new HashSet<>(featureVector);
 
     }

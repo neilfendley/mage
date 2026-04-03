@@ -5,6 +5,7 @@ import org.apache.log4j.Logger;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,12 +28,19 @@ public class Features implements Serializable {
     private final Map<String, Integer> occurrences;
     public boolean passToParent = true;
 
+    // Cache for hash computations to avoid repeated string→byte→hash work
+    private final Map<String, Long> hashCache = new HashMap<>();
+
     private transient StateEncoder encoder;
 
     private String featureName;
     private long seed; //namespace hash
     public Features parent;
     public static boolean useFeatureMap = false;
+
+    // Reusable StringBuilder to avoid String concatenation allocations
+    private static final ThreadLocal<StringBuilder> SB = ThreadLocal.withInitial(() -> new StringBuilder(64));
+
     //root constructor
     public Features() {
         subFeatures = new HashMap<>();
@@ -59,10 +67,9 @@ public class Features implements Serializable {
 
     public void setEncoder(StateEncoder encoder) {
         this.encoder = encoder;
-        for (String name : subFeatures.keySet()) {
-            subFeatures.get(name).setEncoder(encoder);
+        for (Features f : subFeatures.values()) {
+            f.setEncoder(encoder);
         }
-
     }
 
 
@@ -81,15 +88,15 @@ public class Features implements Serializable {
         addFeature(name);
 
         int n = occurrences.get(name);
-        String key = (name+"#"+n);
-        if (subFeatures.containsKey(key)) { //already contains feature
-            return subFeatures.get(key);
-        } else { //completely new
-            Features newSub = new Features(this, key);
-            subFeatures.put(key, newSub);
-            newSub.passToParent = passToParent;
-            return newSub;
+        String key = buildKey(name, '#', n);
+        Features existing = subFeatures.get(key);
+        if (existing != null) {
+            return existing;
         }
+        Features newSub = new Features(this, key);
+        subFeatures.put(key, newSub);
+        newSub.passToParent = passToParent;
+        return newSub;
     }
 
 
@@ -101,14 +108,11 @@ public class Features implements Serializable {
         //usually add feature to parent
         if (parent != null && callParent && passToParent) {
             parent.addFeature(name);
-
         }
-        int n;
-        n = occurrences.getOrDefault(name, 0);
-        n++;
+        int n = occurrences.getOrDefault(name, 0) + 1;
         occurrences.put(name, n);
-        String key = (name+"#"+n);
-        long hash = hash64(key, seed);
+        String key = buildKey(name, '#', n);
+        long hash = hash64Cached(key);
         addIndex(hash, key);
     }
 
@@ -123,29 +127,30 @@ public class Features implements Serializable {
      * @param callParent
      */
     public void addNumericFeature(String name, int num, boolean callParent) {
-        for(int n : NUMERIC_BREAKPOINTS) {
-            if(num < n) break;
-            String k = (name+"@"+n);
-            addFeature(k,  callParent);
+        for (int n : NUMERIC_BREAKPOINTS) {
+            if (num < n) break;
+            addFeature(buildKey(name, '@', n), callParent);
         }
-        for(int n = 0; n < num && n < 20; n++) {
-            String k = (name+"@"+n);
-            addFeature(k, callParent);
+        int limit = Math.min(num, 20);
+        for (int n = 0; n < limit; n++) {
+            addFeature(buildKey(name, '@', n), callParent);
         }
     }
 
     public void stateRefresh() {
-        occurrences.replaceAll((k, v) -> 0);
-        for (String n : subFeatures.keySet()) {
-            subFeatures.get(n).stateRefresh();
+        // Clear counts rather than iterating with replaceAll — they get rebuilt from scratch
+        occurrences.clear();
+        for (Features f : subFeatures.values()) {
+            f.stateRefresh();
         }
     }
+
     private void addIndex(long h, String key) {
         int idx = indexFor(h);
         encoder.featureVector.add(idx);
-        if(useFeatureMap) {
+        if (useFeatureMap) {
             int nameSpace;
-            if(parent != null) {
+            if (parent != null) {
                 nameSpace = indexFor(hash64(featureName, parent.seed));
             } else {
                 nameSpace = -1;
@@ -153,12 +158,33 @@ public class Features implements Serializable {
             encoder.featureMap.addFeature(key, nameSpace, idx);
         }
     }
+
+    /** Build "name{sep}n" without allocating a new String via concatenation each time. */
+    private static String buildKey(String name, char separator, int n) {
+        StringBuilder sb = SB.get();
+        sb.setLength(0);
+        sb.append(name).append(separator).append(n);
+        return sb.toString();
+    }
+
+    /** Hash with per-seed caching to avoid repeated byte conversion + hashing for the same key. */
+    private long hash64Cached(String key) {
+        Long cached = hashCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        long h = hash64(key, seed);
+        hashCache.put(key, h);
+        return h;
+    }
+
     private static int indexFor(long h) {
         if (h < 0) h = -h;
         return (int) (h % TABLE_SIZE);
     }
+
     private static long hash64(String s, long seed) {
-        byte[] data = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] data = s.getBytes(StandardCharsets.UTF_8);
         long h = mix64(seed ^ (data.length * 0x9E3779B185EBCA87L));
         ByteBuffer bb = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
         while (bb.remaining() >= 8) {
@@ -177,6 +203,7 @@ public class Features implements Serializable {
         h ^= h >>> 33;
         return h;
     }
+
     private static long mix64(long z) {
         z = (z ^ (z >>> 30)) * 0xbf58476d1ce4e5b9L;
         z = (z ^ (z >>> 27)) * 0x94d049bb133111ebL;

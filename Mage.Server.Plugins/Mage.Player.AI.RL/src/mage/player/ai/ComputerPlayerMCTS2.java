@@ -149,7 +149,10 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
             }
             if(!current.isTerminal()) {//if terminal is true current must be finalized so skip getGame()
 
+                long _t0 = System.nanoTime();
                 current.validateState();//can become terminal here
+                PerfStats.validateStateNs.addAndGet(System.nanoTime() - _t0);
+                PerfStats.validateStateCount.incrementAndGet();
 
                 if(!current.isTerminal()) {
                     //remove child if failed script
@@ -185,9 +188,15 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
             double result;
             if (!current.isTerminal()) {
                 // eval
+                long _t1 = System.nanoTime();
                 current.evaluate();
+                PerfStats.evaluateNs.addAndGet(System.nanoTime() - _t1);
+                PerfStats.evaluateCount.incrementAndGet();
                 //expand
+                long _t2 = System.nanoTime();
                 current.expand();
+                PerfStats.expandNs.addAndGet(System.nanoTime() - _t2);
+                PerfStats.expandCount.incrementAndGet();
                 //temporary result
                 result = -1;
 

@@ -82,3 +82,5 @@ Mage.Tests/testing.bin
 # build targets
 /deploy
 /temp
+FeatureTable.txt
+WinRates.txt
