@@ -86,7 +86,8 @@ public class KrenkoMain {
                     options.playerBType = "mcts";
                     break;
                 case "--search-budget":
-                    options.searchBudget = args[++i];
+                    options.searchBudget = Integer.parseInt(args[++i]);
+                    break;
                 default:
                     throw new IllegalArgumentException("Unknown argument: " + arg);
             }
