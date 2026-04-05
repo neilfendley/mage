@@ -76,6 +76,7 @@ import java.util.stream.Collectors;
 public abstract class PlayerImpl implements Player, Serializable {
 
     private static final Logger logger = Logger.getLogger(PlayerImpl.class);
+    public static final boolean isHumanManualTap = false;
 
     /**
      * During some steps we can't play anything
@@ -112,6 +113,7 @@ public abstract class PlayerImpl implements Player, Serializable {
     protected ManaPool manaPool;
 
     // priority control
+    public boolean isActivating = false;
     protected boolean passed; // player passed priority
     protected boolean passedTurn; // F4
     protected boolean passedTurnSkipStack; // F6 // TODO: research
@@ -146,6 +148,7 @@ public abstract class PlayerImpl implements Player, Serializable {
     protected RangeOfInfluence range;
     protected Set<UUID> inRange = new HashSet<>(); // players list in current range of influence (updates each turn due rules)
 
+    protected boolean isPayingMana = false;
     protected boolean isTestMode = false;
     protected boolean isFastFailInTestMode = true;
     protected boolean canGainLife = true;
@@ -223,7 +226,9 @@ public abstract class PlayerImpl implements Player, Serializable {
 
     protected PlayerImpl(final PlayerImpl player) {
 
-        playerHistory = new PlayerScript(player.playerHistory);
+        this.playerHistory = new PlayerScript(player.playerHistory);
+        this.isPayingMana  = player.isPayingMana;
+        this.isActivating = player.isActivating;
 
         this.abort = player.abort;
         this.playerId = player.playerId;
@@ -322,6 +327,9 @@ public abstract class PlayerImpl implements Player, Serializable {
             throw new IllegalArgumentException("Wrong code usage: can't restore from player class " + player.getClass().getName());
         }
         this.playerHistory = new PlayerScript(player.getPlayerHistory());
+        this.isPayingMana = ((PlayerImpl) player).isPayingMana;
+        this.isActivating = ((PlayerImpl) player).isActivating;
+
         this.name = player.getName();
         this.human = player.isHuman();
         this.life = player.getLife();
@@ -1631,15 +1639,19 @@ public abstract class PlayerImpl implements Player, Serializable {
         }
         return false;
     }
-
     @Override
     public boolean activateAbility(ActivatedAbility ability, Game game) {
+        isActivating = true;
+        boolean out = activateAbilityHelper(ability, game);
+        isActivating = false;
+        return out;
+    }
+
+    private boolean activateAbilityHelper(ActivatedAbility ability, Game game) {
         if (ability == null) {
             logger.error("activating null ability");
             return false;
         }
-        //logger.info("last activated: " + (lastActivated == null ? "null" : this.lastActivated.toString()));
-
         boolean result;
         if (ability instanceof PassAbility) {
             pass(game);
@@ -1648,7 +1660,7 @@ public abstract class PlayerImpl implements Player, Serializable {
         //never log mana abilities outside MCTS since other AIs use don't use manual tapping
         boolean isNonMCTSManaAbility = !isManualTappingAI() && ability instanceof ManaAbility;
         //needs to happen after pass since pass() logs ability separately
-        if(!(ability instanceof SpecialAction) && !game.isPaused() && !game.checkIfGameIsOver() && !isNonMCTSManaAbility) {
+        if(!isPayingMana && !game.isPaused() && !game.checkIfGameIsOver() && !isNonMCTSManaAbility) {
             playerHistory.prioritySequence.add(ability.copy());
         }
         Card card = game.getCard(ability.getSourceId());
@@ -1695,11 +1707,9 @@ public abstract class PlayerImpl implements Player, Serializable {
                     result = playManaAbility((ActivatedManaAbilityImpl) ability.copy(), game);
                     break;
                 case SPELL:
-                    ApprovingObjectResult approvingResult = chooseApprovingObject(
-                            game,
-                            activationStatus.getApprovingObjects().stream().collect(Collectors.toList()),
-                            false
-                    );
+                    List<ApprovingObject> approvers = new ArrayList<>(activationStatus.getApprovingObjects());
+                    approvers.sort(Comparator.comparing((ApprovingObject a) -> a.getClass().getName()));
+                    ApprovingObjectResult approvingResult = chooseApprovingObject(game, approvers, false);
                     if (approvingResult.status.equals(ApprovingObjectResultStatus.NOT_REQUIRED_NO_CHOICE)) {
                         return false; // chosen to not approve any AsThough.
                     }

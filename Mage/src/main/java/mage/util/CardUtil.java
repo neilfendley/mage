@@ -2505,4 +2505,17 @@ public final class CardUtil {
         return !ability.getEffects().isEmpty()
                 && ability.getEffects().stream().allMatch(InfoEffect.class::isInstance);
     }
+    /**
+     * removes all instances of UUIDs for consistent hashing
+     * @param input nondeterministic string with UUIDs
+     * @return deterministic cleaned strings
+     */
+    public static String cleanString (String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+        String cleaned = input.replaceAll(" \\[[0-9a-f]+]", "");
+        cleaned = cleaned.replaceAll("<[^>]*>", "");
+        return cleaned;
+    }
 }

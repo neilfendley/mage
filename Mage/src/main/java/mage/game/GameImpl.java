@@ -120,7 +120,7 @@ public abstract class GameImpl implements Game {
     protected transient TableEventSource tableEventSource = new TableEventSource();
     protected transient PlayerQueryEventSource playerQueryEventSource = new PlayerQueryEventSource();
 
-    protected Map<UUID, Card> gameCards = new HashMap<>();
+    protected Map<UUID, Card> gameCards = new LinkedHashMap<>();
     protected Map<UUID, MeldCard> meldCards = new HashMap<>(0);
 
     protected Map<Zone, Map<UUID, MageObject>> lki = new EnumMap<>(Zone.class);
@@ -332,7 +332,15 @@ public abstract class GameImpl implements Game {
         boolean isPreAttack = getTurnStepType().equals(PhaseStep.BEGIN_COMBAT);
         boolean isPreBlock = getTurnStepType().equals(PhaseStep.DECLARE_ATTACKERS);
         boolean isPostBlock = getTurnStepType().equals(PhaseStep.DECLARE_BLOCKERS);
-        return  isStarting || isPreAttack ||  isPreBlock || isPostBlock;
+        boolean isMicroDialogue = !getPlayer(playerId).getPlayerHistory().choiceSequence.isEmpty()
+                || !getPlayer(playerId).getPlayerHistory().targetSequence.isEmpty()
+                || !getPlayer(playerId).getPlayerHistory().useSequence.isEmpty()
+                || !getPlayer(playerId).getPlayerHistory().numSequence.isEmpty();
+        boolean isMicroDialogueOpponent = !getOpponent(playerId).getPlayerHistory().choiceSequence.isEmpty()
+                || !getOpponent(playerId).getPlayerHistory().targetSequence.isEmpty()
+                || !getOpponent(playerId).getPlayerHistory().useSequence.isEmpty()
+                || !getOpponent(playerId).getPlayerHistory().numSequence.isEmpty();
+        return  isStarting || isPreAttack ||  isPreBlock || isPostBlock;// || isMicroDialogue || isMicroDialogueOpponent;
     }
     @Override
     public boolean isSimulation() {
@@ -549,6 +557,22 @@ public abstract class GameImpl implements Game {
             return "null";
         }
         return obj.getName();
+    }
+    @Override
+    public String getEntityValue(UUID entityId, UUID playerId) {
+        String name = getEntityName(entityId, playerId);
+        StringBuilder sb = new StringBuilder();
+        sb.append(name);
+        Object o = getObject(entityId);
+        if(o instanceof StackObject) {
+            StackObject so = (StackObject) o;
+            o = getObject(so.getSourceId());
+        }
+        if(o instanceof Permanent) {
+            Permanent permanent = (Permanent) o;
+            sb.append(permanent.getValue(this, playerId));
+        }
+        return sb.toString();
     }
 
     @Override

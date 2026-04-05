@@ -467,9 +467,13 @@ public class ComputerPlayer extends PlayerImpl {
             payManaMode = false;
         }
     }
-
     protected boolean playManaHandling(Ability ability, ManaCost unpaid, final Game game) {
-//        log.info("paying for " + unpaid.getText());
+        isPayingMana = true;
+        boolean out = playManaHandlingHelper(ability, unpaid, game);
+        isPayingMana = false;
+        return out;
+    }
+    private boolean playManaHandlingHelper(Ability ability, ManaCost unpaid, final Game game) {
         Set<ApprovingObject> approvingObjects = game.getContinuousEffects().asThough(ability.getSourceId(), AsThoughEffectType.SPEND_OTHER_MANA, ability, ability.getControllerId(), game);
         boolean hasApprovingObject = !approvingObjects.isEmpty();
 
@@ -826,14 +830,15 @@ public class ComputerPlayer extends PlayerImpl {
     public int announceX(int min, int max, String message, Game game, Ability source, boolean isManaPay) {
         if(isManaPay) {
             MageObject obj = source.getSourceObject(game);
-            boolean hasCostAdjuster = source.getCostAdjuster() != null; // card may have set X bounds or value already
+            boolean hasCostAdjuster = source.getCostAdjuster() != null; // card may have set  bounds or value already
             boolean hasAltPay = obj != null && mage.util.CardUtil.getAbilities(obj, game).stream()
                     .anyMatch(a -> a instanceof mage.abilities.costs.mana.AlternateManaPaymentAbility);
 
             if (!hasCostAdjuster && !hasAltPay) {
-                max = Math.min(max, getManaPool().getMana().count());
+                max = Math.min(max, getManaPool().getMana().count() - source.getManaCostsToPay().getUnpaid().manaValue());
             }
         }
+
         return makeChoiceAmount(min, max, game, source, isManaPay);
     }
 
@@ -872,13 +877,13 @@ public class ComputerPlayer extends PlayerImpl {
     }
     public boolean chooseHelper(Outcome outcome, Choice choice, Game game) {
         //TODO: improve this
-        if (!choice.getChoices().isEmpty()) {
-            String chosen = choice.getChoices().stream().min(Comparator.naturalOrder()).orElse("");
-            choice.setChoice(chosen);
-            return true;
-        } else if (!choice.getKeyChoices().isEmpty()) {
+        if (!choice.getKeyChoices().isEmpty()) {
             String chosenKey = choice.getKeyChoices().keySet().stream().min(Comparator.naturalOrder()).orElse("");
             choice.setChoiceByKey(chosenKey);
+            return true;
+        } else if (!choice.getChoices().isEmpty()) {
+            String chosen = choice.getChoices().stream().min(Comparator.naturalOrder()).orElse("");
+            choice.setChoice(chosen);
             return true;
         }
 
@@ -941,7 +946,14 @@ public class ComputerPlayer extends PlayerImpl {
             //return chooseHelper(outcome, choice, game);
         }
         boolean out = chooseHelper(outcome, choice, game);
-        if(choice.getChoice() != null) getPlayerHistory().choiceSequence.add(choice.getChoice());
+
+        String k = choice.getChoiceKey();
+        if (k != null) {
+            getPlayerHistory().choiceSequence.add(k);
+        } else if (choice.getChoice() != null) {
+            getPlayerHistory().choiceSequence.add(choice.getChoice());
+        }
+
         return out;
     }
 
@@ -1550,6 +1562,9 @@ public class ComputerPlayer extends PlayerImpl {
             numOptionsSize = cPlayer.numOptionsSize;
             allowMulligans = cPlayer.allowMulligans;
             autoTap = cPlayer.autoTap;
+        } else {
+            autoTap = !isHumanManualTap;
+            allowMulligans = true;
         }
         this.human = false;
     }
@@ -1703,6 +1718,7 @@ public class ComputerPlayer extends PlayerImpl {
         playable.add(new PassAbility());
 
         // Return copies to avoid sim coupling
+        playable.sort(Comparator.comparing(ActivatedAbility::getId));
         return playable.stream().map(ActivatedAbility::copy).collect(Collectors.toList());
     }
     //TODO: make this more efficient
@@ -1739,6 +1755,22 @@ public class ComputerPlayer extends PlayerImpl {
      * @return
      */
     protected boolean autoPayFromPool(Ability ability, ManaCost unpaid, final Game game) {
+        isPayingMana = true;
+        // If there’s nothing to pay, succeed immediately
+        if (unpaid instanceof ManaCosts) {
+            ManaCosts<ManaCost> manaCosts = (ManaCosts<ManaCost>) unpaid;
+            if (manaCosts.isEmpty()) {
+                isPayingMana = false;
+                return true;
+            }
+        }
+        // Some engines can pass a 0-generic ManaCost implementation here.
+        // If the cost reports already paid (e.g., GenericManaCost(0)), bail out.
+        if (unpaid.isPaid() || unpaid.getMana().count() == 0) {
+            isPayingMana = false;
+            return true;
+        }
+
         Set<ApprovingObject> approvingObjects = game.getContinuousEffects().asThough(ability.getSourceId(), AsThoughEffectType.SPEND_OTHER_MANA, ability, ability.getControllerId(), game);
         boolean hasApprovingObject = !approvingObjects.isEmpty();
 
@@ -1748,6 +1780,11 @@ public class ComputerPlayer extends PlayerImpl {
             cost = manaCosts.get(manaCosts.size() - 1);
         } else {
             cost = unpaid;
+        }
+
+        if(cost.isPaid() || cost.getMana().count() == 0) {
+            isPayingMana = false;
+            return true;
         }
 
         ManaPool pool = getManaPool();
@@ -1766,6 +1803,7 @@ public class ComputerPlayer extends PlayerImpl {
             pool.setAutoPaymentRestricted(prevAutoRestricted);
         }
         if(unpaid.isPaid()) {
+            isPayingMana = false;
             return true;
         }
         // pay special mana like convoke cost (tap for pay) TODO: support handling multiple special actions (ie Hogaak)
@@ -1780,6 +1818,7 @@ public class ComputerPlayer extends PlayerImpl {
                         continue;
                     }
                     if (activateAbility(specialAction, game)) {
+                        isPayingMana = false;
                         return true;
                     }
                     // only one time try to pay to skip infinite AI loop
@@ -1787,6 +1826,7 @@ public class ComputerPlayer extends PlayerImpl {
                 }
             }
         }
+        isPayingMana = false;
         return false;
     }
 

@@ -169,11 +169,13 @@ public final class GameStateEvaluator2 {
         if (!permanent.getAttachments().isEmpty()) {
             for (UUID attachmentId : permanent.getAttachments()) {
                 Permanent attachment = game.getPermanent(attachmentId);
-                for (Ability a : attachment.getAbilities(game)) {
-                    for (Effect e : a.getEffects()) {
-                        if (e.getOutcome().equals(Outcome.Detriment)
-                                && attachment.getControllerId().equals(permanent.getControllerId())) {
-                            value -= 1000;  // seems to work well ; -300 is not effective enough
+                if(attachment != null) {
+                    for (Ability a : attachment.getAbilities(game)) {
+                        for (Effect e : a.getEffects()) {
+                            if (e.getOutcome().equals(Outcome.Detriment)
+                                    && attachment.getControllerId().equals(permanent.getControllerId())) {
+                                value -= 1000;  // seems to work well ; -300 is not effective enough
+                            }
                         }
                     }
                 }

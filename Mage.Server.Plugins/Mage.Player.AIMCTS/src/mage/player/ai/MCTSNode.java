@@ -2,6 +2,7 @@ package mage.player.ai;
 
 import java.util.*;
 
+import mage.abilities.common.PassAbility;
 import mage.constants.Zone;
 import mage.abilities.Ability;
 import mage.cards.Card;
@@ -13,7 +14,6 @@ import mage.players.PlayerScript;
 import mage.util.RandomUtil;
 import org.apache.log4j.Logger;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.math3.distribution.GammaDistribution;
 import org.apache.commons.math3.random.JDKRandomGenerator;
@@ -58,6 +58,7 @@ public class MCTSNode {
 
     //structure
     protected final List<MCTSNode> children = new ArrayList<>();
+    protected int initialChildren;
     protected MCTSNode parent = null;
 
     //validation (these fields are populated in validateState)
@@ -66,6 +67,7 @@ public class MCTSNode {
     private boolean winner;
     private boolean isRandomTransition = false;
     Set<Integer> stateVector; //encoder derived state vector (used for ML and validation)
+    String stateString;
     ActionEncoder.ActionType actionType;
     private GameState state; //the saved logical game state of this node. Should always be a stable priority window
     //prefix scripts represent the sequence of actions that need to be taken since the last priority to represent this microstate
@@ -115,7 +117,7 @@ public class MCTSNode {
     public int getAmountAction() {
         return  amountAction;
     }
-    public MCTSNode getMatchingState(Set<Integer> state) {
+    public MCTSNode getMatchingState(Set<Integer> state, String stateString) {
         ArrayDeque<MCTSNode> queue = new ArrayDeque<>();
         queue.add(this);
         while (!queue.isEmpty()) {
@@ -212,6 +214,17 @@ public class MCTSNode {
         }
         return idx;
     }
+    public String getOrderString(Game game) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getActionIndex(game));
+        if(priorityAction != null) {
+            sb.append(priorityAction.getSourceId());
+        }
+        if(targetAction != null) {
+            sb.append(targetAction);
+        }
+        return sb.toString();
+    }
     public boolean isRandomTransition() { return isRandomTransition; }
 
     public void setParent(MCTSNode node) {
@@ -260,6 +273,7 @@ public class MCTSNode {
 
         actionType = actingPlayer.getNextAction();
         stateVector = actingPlayer.getStateVector();
+        stateString = rootGame.getState().getValue(rootGame, targetPlayer);
         if(parent != null) {
             if (actingPlayer.getNextAction() == ActionEncoder.ActionType.PRIORITY) {//priority point, use current state value
                 this.state = rootGame.getState();
@@ -356,6 +370,11 @@ public class MCTSNode {
             logger.error("no action found in node");
         }
     }
+
+    /**
+     * searches tree for a legal priority node. not including root.
+     * @return
+     */
     public boolean containsLegalNode() {
         boolean found = false;
         for(MCTSNode child : children) {
@@ -416,7 +435,7 @@ public class MCTSNode {
             for(Ability playable : player.playables) {
                 logger.trace(game.getTurn().getValue(game.getTurnNum()) + " expanding: " + playable.toString());
                 MCTSNode node = createChild();
-                node.priorityAction = playable;
+                node.priorityAction = playable.copy();
                 children.add(node);
             }
         } else if(actionType == ActionEncoder.ActionType.CHOOSE_TARGET) {
@@ -447,14 +466,16 @@ public class MCTSNode {
             MCTSNode nodeFalse = createChild();
             nodeTrue.useAction = true;
             nodeFalse.useAction = false;
-            children.add(nodeTrue);
+            //always add false before true
             children.add(nodeFalse);
+            children.add(nodeTrue);
             logger.trace(game.getTurn().getValue(game.getTurnNum()) + " expanding: true");
             logger.trace(game.getTurn().getValue(game.getTurnNum()) + " expanding: false");
         } else {
             logger.error("unknown nextAction");
         }
-        children.sort(Comparator.comparing(n -> n.getActionIndex(game)));
+        initialChildren = children.size();
+        children.sort(Comparator.comparing(n -> n.getOrderString(game)));
         return children;
     }
     public void expand() {
@@ -474,7 +495,7 @@ public class MCTSNode {
     public synchronized void setPriors() {
         if (policy != null && actionType != ActionEncoder.ActionType.MAKE_CHOICE && actionType != ActionEncoder.ActionType.CHOOSE_NUM) {
 
-            double priorTemperature = ComputerPlayerMCTS.PRIOR_TEMP; // This controls 'spikiness' of prior distribution; higher means less spiky
+            double priorTemperature = basePlayer.priorTemp; // This controls 'spikiness' of prior distribution; higher means less spiky
 
             //find max logit for numeric stability
             double maxLogit = Float.NEGATIVE_INFINITY;
@@ -496,7 +517,7 @@ public class MCTSNode {
             for (MCTSNode node : children) {
                 node.prior /= sumExp;
                 //assign small exploration bonus to non-mana abilities
-                if(node.priorityAction == null || !node.priorityAction.isManaAbility()) {
+                if(node.priorityAction == null || (!node.priorityAction.isManaAbility() && !(node.priorityAction instanceof PassAbility))) {
                     node.prior += ComputerPlayerMCTS.PRIOR_BONUS;
                 }
             }
@@ -543,9 +564,19 @@ public class MCTSNode {
 
     }
     public MCTSNode bestChild(Game baseGame) {
-        ComputerPlayerMCTS myPlayer = (ComputerPlayerMCTS) baseGame.getPlayer(playerId);
+        ComputerPlayerMCTS myPlayer = basePlayer;
         if (children.size() == 1) {
-            return children.get(0);
+            if(children.get(0).isLegalState() || children.get(0).containsLegalNode()) {
+                return children.get(0);
+            } else {
+                return null;
+            }
+        }
+        //mask illegal moves
+        for(MCTSNode node : children) {
+            if(!(node.isLegalState() || node.containsLegalNode())) {
+                node.reset();
+            }
         }
         StringBuilder sb = new StringBuilder();
         if(baseGame.getTurnStepType() == null) {
@@ -553,6 +584,7 @@ public class MCTSNode {
         } else {
             sb.append(baseGame.getTurnStepType().toString());
         }
+        HashMap<String, MCTSNode> actionNames = new HashMap<>();
         sb.append(baseGame.getStack().toString());
         sb.append("pool=").append(myPlayer.getManaPool().getMana());
         sb.append(" actions: ");
@@ -567,6 +599,19 @@ public class MCTSNode {
                 sb.append(String.format("[%s score: %.3f count: %d] ", node.amountAction, node.getMeanScore(), node.getVisits()));
             } else if(node.priorityAction != null){
                 sb.append(String.format("[%s score: %.3f count: %d] ", node.priorityAction, node.getMeanScore(), node.getVisits()));
+                if(actionNames.containsKey(node.priorityAction.toString()) && actionNames.get(node.priorityAction.toString()) != null && actionNames.get(node.priorityAction.toString()).stateVector != null) {
+                    logger.warn("FOUND DUPLICATE ACTION " + node.priorityAction.toString());
+                    HashSet<Integer> intersection = new HashSet<>(actionNames.get(node.priorityAction.toString()).stateVector);
+                    intersection.retainAll(node.stateVector);
+                    HashSet<Integer> onlyA = new HashSet<>(actionNames.get(node.priorityAction.toString()).stateVector);
+                    onlyA.removeAll(intersection);
+                    HashSet<Integer> onlyB = new HashSet<>(node.stateVector);
+                    onlyB.removeAll(intersection);
+                    logger.warn("ONLY IN A: " + onlyA);
+                    logger.warn("ONLY IN B: " + onlyB);
+                } else {
+                    actionNames.put(node.priorityAction.toString(), node);
+                }
             } else {
                 logger.error("no action in node");
             }
@@ -580,11 +625,9 @@ public class MCTSNode {
         //normal selection
         if (dirichletSeed==0 || temperature < 0.01) {
             MCTSNode best = null;
-            double bestCount = -1;
+            double bestCount = 0;
             for (MCTSNode node : children) {
-                if (node.getVisits() > bestCount
-                        && !node.getChildren().isEmpty()
-                        && (node.isTerminal()  || node.actionType.equals(ActionEncoder.ActionType.PRIORITY) || node.containsLegalNode())) {
+                if (node.getVisits() > bestCount) {
                     best = node;
                     bestCount = node.getVisits();
                 }
@@ -602,7 +645,9 @@ public class MCTSNode {
                 maxLogProb = logProb;
             }
         }
-
+        if(maxLogProb == Double.NEGATIVE_INFINITY) {
+            return null;
+        }
         List<Double> probabilities = new ArrayList<>();
         double distributionSum = 0.0;
         for (double logProb : logProbs) {
@@ -634,16 +679,16 @@ public class MCTSNode {
         }
     }
     public void prune(MCTSNode node) {
-        if(!children.contains(node)) {
+        if (!children.contains(node)) {
             logger.error("invalid prune");
             return;
         }
         children.remove(node);
-        node.parent=null;
+        node.parent = null;
 
         if (!children.isEmpty() || parent == null) {
             //correct MCTS stats
-            if(node.visits>0) {
+            if (node.visits > 0) {
                 backpropagate(-node.score * ComputerPlayerMCTS.BACKPROP_DISCOUNT, -node.getVisits());
             }
         } else {
@@ -701,8 +746,7 @@ public class MCTSNode {
     public boolean isWinner(Game game, UUID playerId) {
         if (game != null) {
             Player player = game.getPlayer(playerId);
-            if (player != null && player.hasWon())
-                return true;
+            return player != null && player.hasWon();
         }
         return false;
     }
@@ -716,6 +760,13 @@ public class MCTSNode {
             num += child.size();
         }
         return num;
+    }
+    public int maxDepth() {
+        int max = 0;
+        for (MCTSNode child : children) {
+            max = Math.max(max, child.maxDepth());
+        }
+        return max+1;
     }
 
     public void reset() {

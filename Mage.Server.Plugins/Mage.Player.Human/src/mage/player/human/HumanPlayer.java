@@ -629,7 +629,10 @@ public class HumanPlayer extends PlayerImpl {
         }
         return fullText;
     }
-
+    @Override
+    public boolean isManualTappingAI() {
+        return isHumanManualTap;
+    }
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
         boolean out = chooseHelper(outcome, choice, game);

@@ -1,12 +1,17 @@
 package mage.player.ai.encoder;
 
+import mage.ConditionalMana;
 import mage.MageObject;
+import mage.Mana;
 import mage.abilities.*;
 import mage.abilities.costs.Cost;
 import mage.abilities.costs.Costs;
 import mage.abilities.costs.mana.ManaCost;
 import mage.abilities.costs.mana.ManaCosts;
+import mage.abilities.effects.ContinuousEffect;
+import mage.abilities.effects.ContinuousEffectsList;
 import mage.abilities.effects.Effect;
+import mage.abilities.keyword.KickerAbility;
 import mage.cards.Card;
 import mage.cards.Cards;
 import mage.constants.CardType;
@@ -27,6 +32,7 @@ import mage.game.stack.SpellStack;
 import mage.game.stack.StackObject;
 import mage.players.ManaPool;
 import mage.players.Player;
+import mage.players.PlayerImpl;
 import mage.target.Target;
 import mage.target.Targets;
 import mage.util.CardUtil;
@@ -37,9 +43,10 @@ import mage.watchers.common.PlayerGainedLifeWatcher;
 import org.apache.log4j.Logger;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * Global sparse state encoder for deep learning.
+ * Global sparse state hasher for deep learning and MCTS validation
  * @author WillWroble
  *
  */
@@ -241,7 +248,7 @@ public class StateEncoder {
             for (int i = 0; i < targetingObjects.size(); i++) {
                 StackObject so = targetingObjects.get(i);
                 Features targetingObjectFeatures = targetingFeatures.getSubFeatures(cleanString(so.toString()));
-                processStackObject(so, stackIndices.get(i), game, playerId, targetingObjectFeatures);
+                processStackObject(so, game, playerId, targetingObjectFeatures);
             }
         }
 
@@ -310,7 +317,7 @@ public class StateEncoder {
         //sort for deterministic traversal
         TreeMap<String, Permanent> sortedPerms = new TreeMap<>();
         for(Permanent p : bf.getAllActivePermanents(playerId)) {
-            sortedPerms.put(p.getValue(game, playerId)+p.getId(), p);
+            sortedPerms.put(p.getValue(game, playerId), p);
         }
         for (Permanent p : sortedPerms.values()) {
             Features permFeatures = f.getSubFeatures(p.getName());
@@ -318,21 +325,19 @@ public class StateEncoder {
         }
     }
     private void processGraveyard(Graveyard gy, Game game, Features f) {
-        for (Card c : gy.getCards(game)) {
-            Features graveCardFeatures = f.getSubFeatures(c.getName());
+        for (Card c : gy.getCardsSorted(game)) {
+            Features graveCardFeatures = f.getSubFeatures(c.getName(), true, c.getId());
             processCardInZone(c, Zone.GRAVEYARD, game, graveCardFeatures);
         }
     }
     private void processHand(Cards hand, Game game, Features f) {
-        for (Card c : hand.getCards(game)) {
-            Features handCardFeatures = f.getSubFeatures(c.getName());
+        for (Card c : hand.getCardsSorted(game)) {
+            Features handCardFeatures = f.getSubFeatures(c.getName(), true, c.getId());
             processCardInZone(c, Zone.HAND, game, handCardFeatures);
         }
     }
-    private void processStackObject(StackObject so, int stackPosition, Game game, UUID playerId, Features f) {
+    private void processStackObject(StackObject so, Game game, UUID playerId, Features f) {
 
-
-        f.addNumericFeature("StackPosition", stackPosition, false);
         if(so.getControllerId().equals(playerId)) f.addFeature("isController");
         Ability sa = so.getStackAbility();
 
@@ -344,6 +349,7 @@ public class StateEncoder {
             for (Target target : myTargets) {
                 for (UUID id : target.getTargets()) {
                     Features targetFeatures = targetsFeatures.getSubFeatures(game.getEntityName(id, playerId));
+                    //Features targetFeatures = targetsFeatures.getSubFeatures(features.getNameFromUUID(id));
                     Card c = game.getCard(id);
                     if (c != null) {
                         processCard(c, game, targetFeatures);
@@ -351,6 +357,33 @@ public class StateEncoder {
                 }
             }
         }
+        //kicker
+        int totalKicks = KickerAbility.getKickedCounter(game, sa);
+        f.addNumericFeature("Kicks", totalKicks, false);
+        //cost tags
+        Map<String, Object> tags = CardUtil.getSourceCostsTagsMap(game, sa);
+        if (tags != null && !tags.isEmpty()) {
+            for(String tag : tags.keySet()) {
+                Object v = tags.get(tag);
+                f.addNumericFeature(tag + "_CostTag", (v instanceof Integer) ? (Integer) v : 1);
+            }
+        }
+        //modes
+        List<UUID> selectedModes = sa.getModes().getSelectedModes();
+        if (selectedModes != null && !selectedModes.isEmpty() && sa.getModes().size()>1) {
+            Features modesFeatures = f.getSubFeatures("modes", false);
+            //selected modes
+            for(UUID id : selectedModes) {
+                Mode m = sa.getModes().get(id);
+                for(Effect e : m.getEffects()) {
+                    modesFeatures.parent.addFeature(cleanString(e.getText(m)));
+                }
+            }
+        }
+        //variable cost
+        int xValue = CardUtil.getSourceCostsTag(game, sa, "X", 0);
+        f.addNumericFeature("XValue", xValue, false);
+
         if(sa instanceof TriggeredAbility) {
             processTriggeredAbility((TriggeredAbility) sa, game, f);
         } else {
@@ -366,17 +399,15 @@ public class StateEncoder {
     private void processStack(SpellStack stack, Game game, UUID playerId, Features f) {
         Iterator<StackObject> itr = stack.descendingIterator();
         StackObject so;
-        f.addNumericFeature("StackSize", stack.size());
-        int i = 0;
+        Features soFeatures = f;
         while(itr.hasNext()) {
             so = itr.next();
-            i++;
-            Features soFeatures = f.getSubFeatures(cleanString(so.toString()));
-            processStackObject(so, i, game, playerId, soFeatures);
+            soFeatures = soFeatures.getSubFeatures(cleanString(so.toString()));
+            processStackObject(so, game, playerId, soFeatures);
         }
     }
     private void processExileZone(ExileZone exileZone, Game game, Features f) {
-        for (Card c : exileZone.getCards(game)) {
+        for (Card c : exileZone.getCardsSorted(game)) {
             Features exileCardFeatures = f.getSubFeatures(c.getName());
             processCardInZone(c, Zone.EXILED, game, exileCardFeatures);
         }
@@ -388,14 +419,25 @@ public class StateEncoder {
             processExileZone(ez, game, exileZoneFeatures);
         }
     }
+    private void processMana(Mana mana, Game game, Features f) {
+        f.addNumericFeature("GreenMana", mana.getGreen());
+        f.addNumericFeature("RedMana", mana.getRed());
+        f.addNumericFeature("BlueMana", mana.getBlue());
+        f.addNumericFeature("WhiteMana", mana.getWhite());
+        f.addNumericFeature("BlackMana", mana.getBlack());
+        f.addNumericFeature("ColorlessMana", mana.getColorless());
+    }
     private void processManaPool(ManaPool mp, Game game,  Features f) {
-        f.addNumericFeature("GreenMana", mp.getGreen());
-        f.addNumericFeature("RedMana", mp.getRed());
-        f.addNumericFeature("BlueMana", mp.getBlue());
-        f.addNumericFeature("WhiteMana", mp.getWhite());
-        f.addNumericFeature("BlackMana", mp.getBlack());
-        f.addNumericFeature("ColorlessMana", mp.getColorless());
-        //TODO: deal with conditional mana
+        processMana(mp.getMana(), game, f);
+
+        List<ConditionalMana> conditionalMana = mp.getConditionalMana();
+        if(conditionalMana != null && !conditionalMana.isEmpty()) {
+            Features conditionalManaFeatures = f.getSubFeatures("ConditionalMana", false);
+            for(ConditionalMana condMana : conditionalMana) {
+                Features cmFeatures = conditionalManaFeatures.getSubFeatures(condMana.getConditionString());
+                processMana(condMana, game, cmFeatures);
+            }
+        }
     }
     private void processCommandZone(Game game, UUID playerId, Features f) {
         // Command zone
@@ -458,46 +500,38 @@ public class StateEncoder {
     }
     private void processMicroDecisions(Game game, UUID playerId, Features f) {
         Player myPlayer = game.getPlayer(playerId);
-        //micro decision counters for full validation/context
-        f.addNumericFeature("prioritySequenceSize", myPlayer.getPlayerHistory().prioritySequence.size());
-        f.addNumericFeature("useSequenceSize", myPlayer.getPlayerHistory().useSequence.size());
-        f.addNumericFeature("targetSequenceSize", myPlayer.getPlayerHistory().targetSequence.size());
-        f.addNumericFeature("choiceSequenceSize", myPlayer.getPlayerHistory().choiceSequence.size());
-        f.addNumericFeature("numSequenceSize", myPlayer.getPlayerHistory().numSequence.size());
-        //latest micro decision made
-        if(!myPlayer.getPlayerHistory().prioritySequence.isEmpty()) {
-            f.addFeature(myPlayer.getPlayerHistory().prioritySequence.peekLast().getRule());
+        //current targets selected for when it's in the middle selecting multiple targets
+        Features chosenTargetsFeatures = f.getSubFeatures("ChosenTargets", false);
+        for(UUID targetID : myPlayer.getPlayerHistory().targetSequence) {
+            chosenTargetsFeatures = chosenTargetsFeatures.getSubFeatures(game.getEntityName(targetID, playerId));
         }
-        if(!myPlayer.getPlayerHistory().useSequence.isEmpty()) {
-            f.addFeature(myPlayer.getPlayerHistory().useSequence.peekLast().toString());
+        //current choices selected for when it's in the middle selecting multiple choices
+        Features choiceFeatures = f.getSubFeatures("ChosenChoices", false);
+        for(String choice : myPlayer.getPlayerHistory().choiceSequence) {
+            choiceFeatures = choiceFeatures.getSubFeatures(choice);
         }
-        if(!myPlayer.getPlayerHistory().targetSequence.isEmpty()) {
-            //f.addFeature(game.getEntityName(myPlayer.getPlayerHistory().targetSequence.peekLast(), playerId));
+        //current choices selected for when it's in the middle selecting multiple choices
+        Features useFeatures = f.getSubFeatures("UseChoices", false);
+        for(Boolean use : myPlayer.getPlayerHistory().useSequence) {
+            useFeatures = useFeatures.getSubFeatures(use.toString());
         }
-        if(!myPlayer.getPlayerHistory().choiceSequence.isEmpty()) {
-            //f.addFeature(myPlayer.getPlayerHistory().choiceSequence.peekLast().toString());
-        }
-        if(!myPlayer.getPlayerHistory().numSequence.isEmpty()) {
-            f.addFeature(myPlayer.getPlayerHistory().numSequence.peekLast().toString());
+        //current choices selected for when it's in the middle selecting multiple choices
+        Features amountFeatures = f.getSubFeatures("AmountChoices", false);
+        for(Integer num : myPlayer.getPlayerHistory().numSequence) {
+            amountFeatures = amountFeatures.getSubFeatures(num.toString());
         }
     }
     private void processPlayer(Game game, UUID playerId, UUID decisionPlayerId, Features f) {
         Player myPlayer = game.getPlayer(playerId);
 
-        //micro decision state
-        Features microFeatures = f.getSubFeatures("Micro", false);
-        processMicroDecisions(game, playerId, microFeatures);
+        if(myPlayer.isInPayManaMode()) f.addFeature("InPayManaMode", false);
+        if(((PlayerImpl)myPlayer).isActivating) f.addFeature("Activating", false);
 
-        //current targets selected for when it's in the middle selecting multiple targets
-        Features chosenTargetsFeatures = f.getSubFeatures("ChosenTargets", false);
-        for(UUID targetID : myPlayer.getPlayerHistory().targetSequence) {
-            chosenTargetsFeatures.addFeature(game.getEntityName(targetID, playerId));
-        }
-        //current choices selected for when it's in the middle selecting multiple choices
-        Features choiceFeatures = f.getSubFeatures("ChosenChoices", false);
-        for(String choice : myPlayer.getPlayerHistory().choiceSequence) {
-            choiceFeatures.addFeature(choice);
-        }
+        //micro decision state
+        processMicroDecisions(game, playerId, f);
+
+
+
 
         if(game.isActivePlayer(playerId)) f.addFeature("IsActivePlayer");
         if(decisionPlayerId.equals(playerId)) f.addFeature("IsDecisionPlayer");
@@ -578,6 +612,7 @@ public class StateEncoder {
         features.addFeature(decisionType.toString());
         //decision state
         features.addFeature(cleanString(decisionsText));
+
 
 
         //stack
