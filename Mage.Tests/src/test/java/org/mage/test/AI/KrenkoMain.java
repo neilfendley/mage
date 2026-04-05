@@ -30,7 +30,7 @@ public class KrenkoMain {
         private int maxTurns = MAX_TURNS;
         private int threads = 20;
         private String playerDeck = PLAYER_DECK;
-        private List<String> opponentDecks = new ArrayList<>(DECK_ARRAY);
+        private String opponentDeck = "decks/JeskaiControl.dck";
         private String playerAType = "mcts";
         private String playerBType = "minimax";
         private String playerAOutputDir = null;
@@ -63,11 +63,7 @@ public class KrenkoMain {
                     options.playerDeck = args[++i];
                     break;
                 case "--opponent-deck":
-                    options.opponentDecks = new ArrayList<>();
-                    options.opponentDecks.add(args[++i]);
-                    break;
-                case "--opponent-decks":
-                    options.opponentDecks = new ArrayList<>(Arrays.asList(args[++i].split(",")));
+                    options.opponentDeck = args[++i];
                     break;
                 case "--player-a-type":
                     options.playerAType = args[++i];
@@ -94,8 +90,7 @@ public class KrenkoMain {
         }
 
         if (options.selfPlay) {
-            options.opponentDecks = new ArrayList<>();
-            options.opponentDecks.add(options.playerDeck);
+            options.opponentDeck = options.playerDeck;
         }
         return options;
     }
@@ -109,14 +104,14 @@ public class KrenkoMain {
             CardScanner.scan();
         }
         System.out.println("Starting KrenkoMain tests using deck " + options.playerDeck
-                + " against decks: " + options.opponentDecks
+                + " against deck: " + options.opponentDeck
                 + " for " + options.gamesPerTest + " games each.");
+        // try {
         for (int test = 1; test <= options.numberOfTests; test++) {
             System.out.println("=== Starting Test " + test + " ===");
-            for (String oppDeck : options.opponentDecks) {
-                System.out.println("Testing deck " + options.playerDeck + " against " + oppDeck);
-                Config.INSTANCE.playerA.deckPath = options.playerDeck;
-                Config.INSTANCE.playerB.deckPath = oppDeck;
+            System.out.println("Testing deck " + options.playerDeck + " against " + options.opponentDeck);
+            Config.INSTANCE.playerA.deckPath = options.playerDeck;
+            Config.INSTANCE.playerB.deckPath = options.opponentDeck;
                 Config.INSTANCE.playerA.type = options.playerAType;
                 Config.INSTANCE.playerB.type = options.playerBType;
                 if (options.playerAOutputDir != null) {
@@ -128,17 +123,22 @@ public class KrenkoMain {
                 Config.INSTANCE.training.games = options.gamesPerTest;
                 Config.INSTANCE.training.maxTurns = options.maxTurns;
                 Config.INSTANCE.training.threads = options.threads;
-                Config.INSTANCE.playerA.mcts.searchBudget = options.searchBudget;
-                try {
-                    ParallelDataGenerator generator = new ParallelDataGenerator();
-                    generator.generateData();
-                    // int gamesPlayed = generator.gameCount.get();
-                    // assertEquals(GAMES_PER_TEST, gamesPlayed, "Should complete all games");
-                    // assertTrue(gamesPlayed > 0, "Should play at least one game");
-                } catch (Exception e) {
-                    System.out.println("Deck " + oppDeck + " caused crash: " + e.getMessage());
-                }
+            Config.INSTANCE.playerA.mcts.searchBudget = options.searchBudget;
+            try {
+                ParallelDataGenerator generator = new ParallelDataGenerator();
+                generator.generateData();
+                // int gamesPlayed = generator.gameCount.get();
+                // assertEquals(GAMES_PER_TEST, gamesPlayed, "Should complete all games");
+                // assertTrue(gamesPlayed > 0, "Should play at least one game");
+            } catch (Exception e) {
+                System.out.println("Deck " + options.opponentDeck + " caused crash: " + e.getMessage());
+                e.printStackTrace();
             }
         }
+        // } finally {
+        System.out.println("Tests complete. Exiting cleanly.");
+        CardRepository.instance.closeDB(true);
+        System.exit(0);
+        // }
     }
 }

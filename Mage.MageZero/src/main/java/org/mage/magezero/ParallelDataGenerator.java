@@ -265,6 +265,15 @@ public class ParallelDataGenerator {
         try {
             List<Future<GameResult>> futures = executor.invokeAll(tasks);
             executor.shutdown();
+            
+            // Wait for executor to terminate all threads
+            if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
+                logger.warn("Executor did not terminate within timeout, forcing shutdown.");
+                executor.shutdownNow();
+                if (!executor.awaitTermination(1, TimeUnit.MINUTE)) {
+                    logger.error("Executor did not terminate even after forced shutdown.");
+                }
+            }
 
             for (Future<GameResult> future : futures) {
                 try {
@@ -285,6 +294,7 @@ public class ParallelDataGenerator {
         } catch (InterruptedException e) {
             logger.error("Main simulation thread was interrupted. Shutting down.");
             e.printStackTrace();
+            executor.shutdownNow();
             Thread.currentThread().interrupt();
         }
         logger.info("--- Simulation Summary ---");
