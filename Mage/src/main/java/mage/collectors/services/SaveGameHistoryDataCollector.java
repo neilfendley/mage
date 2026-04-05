@@ -72,6 +72,7 @@ public class SaveGameHistoryDataCollector extends EmptyDataCollector {
     private static final String DECK_FILE_NAME_FORMAT = "deck_player_%d.dck";
     private static final String GAME_LOGS_FILE_NAME = "game_logs.html";
     private static final String GAME_CHAT_FILE_NAME = "game_chat.txt";
+    private static final String STAT_LOGS_FILE_NAME = "stats.txt";
 
     private static final UUID NO_TABLE_ID = UUID.randomUUID();
     private static final String NO_TABLE_NAME = "SINGLE"; // need for unit tests
@@ -82,6 +83,20 @@ public class SaveGameHistoryDataCollector extends EmptyDataCollector {
     // prepared dirs for each table or game - if it returns empty string then logs will be disabled, e.g. on too many data
     Map<UUID, String> tableDirs = new ConcurrentHashMap<>();
     Map<UUID, String> gameDirs = new ConcurrentHashMap<>();
+
+    // ===============================================================================
+    // PSEUDOCODE SKELETON: STATISTICS TRACKING (Wins, Losses, Card Types, Card Colors)
+    // ===============================================================================
+    // class PlayerGameStats {
+    //     int wins = 0;
+    //     int losses = 0;
+    //     Map<String, Integer> cardsUsedByType = new HashMap<>(); // e.g., "Creature" -> 5, "Instant" -> 2
+    //     Map<String, Integer> cardsUsedByColor = new HashMap<>(); // e.g., "Red" -> 4, "Blue" -> 3
+    // }
+    //
+    // // Map to hold stats for each game and player: gameId -> (playerId -> stats)
+    // Map<UUID, Map<UUID, PlayerGameStats>> gameStatistics = new ConcurrentHashMap<>();
+    // ===============================================================================
 
     // all write operations must be done in single thread
     // TODO: analyse load tests performance and split locks per table/game
@@ -156,6 +171,16 @@ public class SaveGameHistoryDataCollector extends EmptyDataCollector {
         if (!this.enabled) return;
         writeToGameLogsFile(game, new Date() + " [START] " + game.getId() + ", " + game);
 
+        // ===============================================================================
+        // PSEUDOCODE SKELETON: INITIALIZE STATS
+        // ===============================================================================
+        // Map<UUID, PlayerGameStats> currentStats = new HashMap<>();
+        // for (Player player : game.getPlayers().values()) {
+        //     currentStats.put(player.getId(), new PlayerGameStats());
+        // }
+        // gameStatistics.put(game.getId(), currentStats);
+        // ===============================================================================
+
         // save deck files
         writeLock.lock();
         try {
@@ -183,12 +208,62 @@ public class SaveGameHistoryDataCollector extends EmptyDataCollector {
     public void onGameLog(Game game, String message) {
         if (!this.enabled) return;
         writeToGameLogsFile(game, new Date() + " [LOG] " + CardUtil.getTurnInfo(game) + ": " + message);
+
+        // ===============================================================================
+        // PSEUDOCODE SKELETON: TRACK CARDS USED BY TYPE AND COLOR
+        // ===============================================================================
+        // Note: Rather than parsing raw log strings here, it is usually more reliable
+        // to track card usage via a spell casting event hook, or by traversing
+        // game.getState().getWatchers() / game.getExile() / etc. at the end of the game.
+        //
+        // pseudo-method onCardCast(Game game, UUID playerId, Card card):
+        //     PlayerGameStats stats = gameStatistics.get(game.getId()).get(playerId);
+        //     
+        //     // Track types (Creature, Instant, etc.)
+        //     for (CardType type : card.getCardType()) {
+        //         String typeName = type.toString();
+        //         stats.cardsUsedByType.put(typeName, stats.cardsUsedByType.getOrDefault(typeName, 0) + 1);
+        //     }
+        //     
+        //     // Track colors (Red, Blue, Green, etc.)
+        //     for (ObjectColor color : card.getColor(game).getColors()) {
+        //         String colorName = color.toString();
+        //         stats.cardsUsedByColor.put(colorName, stats.cardsUsedByColor.getOrDefault(colorName, 0) + 1);
+        //     }
+        // ===============================================================================
     }
 
     @Override
     public void onGameEnd(Game game) {
         if (!this.enabled) return;
         writeToGameLogsFile(game, new Date() + " [END] " + game.getId() + ", " + game);
+
+        // ===============================================================================
+        // PSEUDOCODE SKELETON: FINALIZE STATS (WINS/LOSSES) AND WRITE TO DISK
+        // ===============================================================================
+        // Map<UUID, PlayerGameStats> stats = gameStatistics.get(game.getId());
+        // if (stats != null) {
+        //     for (Player player : game.getPlayers().values()) {
+        //         PlayerGameStats playerStats = stats.get(player.getId());
+        //         
+        //         // Determine Win/Loss
+        //         if (player.hasWon()) {
+        //             playerStats.wins++;
+        //         } else if (player.hasLost() || player.hasQuit()) {
+        //             playerStats.losses++;
+        //         }
+        //         
+        //         // Write out stats to a hypothetical "stats.txt" file
+        //         // String gameDir = getOrCreateGameDir(game, false);
+        //         // String statsFile = Paths.get(gameDir, STAT_LOGS_FILE_NAME).toString();
+        //         // String resultOutput = String.format("Player %s: %d Wins, %d Losses", player.getName(), playerStats.wins, playerStats.losses);
+        //         // writeToFile(statsFile, resultOutput, "\n");
+        //         // writeToFile(statsFile, "Cards by Type: " + playerStats.cardsUsedByType.toString(), "\n");
+        //         // writeToFile(statsFile, "Cards by Color: " + playerStats.cardsUsedByColor.toString(), "\n");
+        //     }
+        //     gameStatistics.remove(game.getId()); // Cleanup to prevent memory leak
+        // }
+        // ===============================================================================
 
         // good end - move game data to done folder
         writeLock.lock();
