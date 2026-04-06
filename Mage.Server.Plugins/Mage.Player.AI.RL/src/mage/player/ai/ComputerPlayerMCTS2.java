@@ -102,7 +102,7 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
         }
         int initialVisits = root.getVisits();
         int childVisits = getChildVisitsFromRoot().stream().mapToInt(Integer::intValue).sum();
-        if (SHOW_THREAD_INFO) logger.info(String.format("STARTING ROOT VISITS: %d", initialVisits));
+        if (SHOW_THREAD_INFO) logger.debug(String.format("STARTING ROOT VISITS: %d", initialVisits));
 
 
         double totalThinkTimeThisMove = 0;
@@ -125,15 +125,15 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
             }
             if(root.containsLegalNode()) { //can only exit search if the tree contains a priority node (meaning a future legal state)
                 if (System.nanoTime() > endTime) {
-                    logger.info("timed out, ending search");
+                    logger.debug("timed out, ending search");
                     break;
                 }
                 if (simCount + childVisits >= searchBudget) {
-                    logger.info("required visits reached, ending search");
+                    logger.debug("required visits reached, ending search");
                     break;
                 }
                 if (root.size() >= MAX_TREE_NODES) {
-                    logger.info("too many nodes in tree, ending search");
+                    logger.debug("too many nodes in tree, ending search");
                     break;
                 }
             }
@@ -179,7 +179,7 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
                                 current.getChildren().add(child);
                                 child.setParent(current);
                             }
-                            logger.warn("non canonical ordering found, pruning path with " + match.getVisits() + "visits");
+                            // logger.warn("non canonical ordering found, pruning path with " + match.getVisits() + "visits");
                         }
                         continue;
                     }
@@ -213,14 +213,14 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
         totalThinkTime += totalThinkTimeThisMove;
 
         if (SHOW_THREAD_INFO && !allMana) {
-            logger.info(String.format("Pending Nodes: %d", pendingNodes.get()));
-            logger.info(String.format("Ran %d simulations.", simCount));
-            logger.info(String.format("COMPOSITE CHILDREN: %s", getChildVisitsFromRoot().toString()));
-            logger.info("Player: " + name + " simulated " + simCount + " evaluations in " + totalThinkTimeThisMove
+            logger.debug(String.format("Pending Nodes: %d", pendingNodes.get()));
+            logger.debug(String.format("Ran %d simulations.", simCount));
+            logger.debug(String.format("COMPOSITE CHILDREN: %s", getChildVisitsFromRoot().toString()));
+            logger.debug("Player: " + name + " simulated " + simCount + " evaluations in " + totalThinkTimeThisMove
                     + " seconds - nodes in tree: " + root.size());
-            logger.info("Total: simulated " + totalSimulations + " evaluations in " + totalThinkTime
+            logger.debug("Total: simulated " + totalSimulations + " evaluations in " + totalThinkTime
                     + " seconds - Average: " + (totalThinkTime > 0 ? totalSimulations / totalThinkTime : 0));
-            logger.info(illegalPurged + " illegals purged, " + duplicatePurged + " duplicates purged");
+            logger.debug(illegalPurged + " illegals purged, " + duplicatePurged + " duplicates purged");
         }
     }
     int[] getActionVec(MCTSNode node, Game game) {
@@ -258,8 +258,8 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
         newRoot.evaluate();
 
         if(!prefixScript.isEmpty() || !opponentPrefixScript.isEmpty() ) {
-            logger.info("prefix at root: " + prefixScript);
-            logger.info("opponent prefix at root: " + opponentPrefixScript);
+            logger.debug("prefix at root: " + prefixScript);
+            logger.debug("opponent prefix at root: " + opponentPrefixScript);
         }
         if (root != null) {
             root = (MCTSNode2) root.getMatchingState(newRoot.stateVector);
