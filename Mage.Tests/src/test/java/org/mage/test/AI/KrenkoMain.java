@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class KrenkoMain {
-    private static final int GAMES_PER_TEST = 20;
+    private static final int GAMES_PER_TEST = 25;
     // private static final int NUMBER_OF_TESTS = 8;
     private static final int MAX_TURNS = 50;
     private static final String PLAYER_DECK = "decks/MonoGLandfall.dck";
@@ -36,9 +36,6 @@ public class KrenkoMain {
         private String playerAType = "mcts";
         private String playerBType = "minimax";
         private String outputDir = "data";
-        // private String playerBOutputDir = null;
-        private boolean selfPlay = false;
-        private int searchBudget=1000;
         private int version = 0;
     }
 
@@ -77,9 +74,6 @@ public class KrenkoMain {
                 case "--self-play":
                     options.selfPlay = true;
                     options.playerBType = "mcts";
-                    break;
-                case "--search-budget":
-                    options.searchBudget = Integer.parseInt(args[++i]);
                     break;
                 case "--version":
                     options.version = Integer.parseInt(args[++i]);
