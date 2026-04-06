@@ -355,7 +355,7 @@ public class MCTSPlayer extends ComputerPlayer {
     @Override
     public void illegalGameState(Game game) {
         if(game.isPaused()) return;
-        logger.warn("Illegal game state: " + game);
+        logger.debug("Illegal game state: " + game);
         scriptFailed = true;
         lastToAct = true;
         game.pause();
