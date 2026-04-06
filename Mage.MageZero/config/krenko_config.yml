@@ -1,11 +1,10 @@
 # default-config.yaml
 
 goes_first: player_a  # player_a, player_b, random
-
+outputDIR: data
 player_a:
   deckPath: decks/UWTempo.dck
   type: mcts
-  output_dir: data/playerA
 
 
   priors:
@@ -28,8 +27,7 @@ player_a:
 
 player_b:
   deckPath: decks/Standard-MonoG.dck
-  type: minimax
-  output_dir: data/playerB
+  type: mcts
 
   priors:
     priority: false

@@ -23,6 +23,7 @@ import mage.player.ai.RemoteModelEvaluator;
 import mage.players.Player;
 import mage.util.RandomUtil;
 import org.apache.log4j.Logger;
+import org.apache.log4j.Level;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -38,6 +39,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -155,8 +157,9 @@ public class ParallelDataGenerator {
 
     }
     public void generateData() {
+        Logger.getLogger("org.mage.magezero.ParallelDataGenerator").setLevel(Level.ERROR);
+        Logger.getRootLogger().setLevel(Level.ERROR);
         PerfStats.reset();
-        String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
 
         loadAllFiles();
         ComputerPlayerMCTS2.SHOW_THREAD_INFO = true;
@@ -168,23 +171,22 @@ public class ParallelDataGenerator {
         deckNameB = extractDeckName(Config.INSTANCE.playerB.deckPath);
 
         // Create timestamped subdirectories
-        String timestampedDirA = Config.INSTANCE.playerA.outputDir + "/" + timestamp;
-        String timestampedDirB = Config.INSTANCE.playerB.outputDir + "/" + timestamp;
+        // String timestampedDirA = Config.INSTANCE.outputDir + "/" + timestamp;
+        // String timestampedDirB = Config.INSTANCE.outputDir + "/" + timestamp;
         
         try {
-            Files.createDirectories(Paths.get(timestampedDirA));
-            Files.createDirectories(Paths.get(timestampedDirB));
+            Files.createDirectories(Paths.get(Config.INSTANCE.outputDir));
         } catch (IOException e) {
             logger.error("Failed to create timestamped output directories", e);
             throw new RuntimeException(e);
         }
 
-        String fileA = deckNameA + "_vs_" + deckNameB + ".hdf5";
-        String fileB = deckNameB + "_vs_" + deckNameA + ".hdf5";
+        String fileA = deckNameA + "_vs_" + deckNameB + ".a.hdf5";
+        String fileB = deckNameB + "_vs_" + deckNameA + ".b.hdf5";
 
         try {
-            fwA = new LabeledStateWriter(timestampedDirA + "/" + fileA);
-            fwB = new LabeledStateWriter(timestampedDirB + "/" + fileB);
+            fwA = new LabeledStateWriter(Config.INSTANCE.outputDir + "/" + fileA);
+            fwB = new LabeledStateWriter(Config.INSTANCE.outputDir + "/" + fileB);
             writer = getThread(fwA, fwB);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -194,9 +196,9 @@ public class ParallelDataGenerator {
 
         logger.info("=========================================");
         logger.info("   STARTING DATA GENERATION     ");
-        logger.info("Run timestamp: " + timestamp);
-        logger.info("Output directory A: " + timestampedDirA);
-        logger.info("Output directory B: " + timestampedDirB);
+        // logger.info("Run timestamp: " + timestamp);
+        // logger.info("Output directory A: " + timestampedDirA);
+        logger.info("Output directory: " + Config.INSTANCE.outputDir);
         logger.info("=========================================");
 
 
@@ -281,6 +283,15 @@ public class ParallelDataGenerator {
         try {
             List<Future<GameResult>> futures = executor.invokeAll(tasks);
             executor.shutdown();
+            
+            // Wait for executor to terminate all threads
+            if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
+                logger.warn("Executor did not terminate within timeout, forcing shutdown.");
+                executor.shutdownNow();
+                if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
+                    logger.error("Executor did not terminate even after forced shutdown.");
+                }
+            }
 
             for (Future<GameResult> future : futures) {
                 try {
@@ -301,6 +312,7 @@ public class ParallelDataGenerator {
         } catch (InterruptedException e) {
             logger.error("Main simulation thread was interrupted. Shutting down.");
             e.printStackTrace();
+            executor.shutdownNow();
             Thread.currentThread().interrupt();
         }
         logger.info("--- Simulation Summary ---");
