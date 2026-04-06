@@ -315,15 +315,31 @@ public class MCTSPlayer extends ComputerPlayer {
     }
     @Override
     public Mode chooseMode(Modes modes, Ability source, Game game) {
-        if(game.isPaused() || game.checkIfGameIsOver()) {
-            return super.chooseModeHelper(modes, source, game);
+        List<Mode> modeOptions = new ArrayList<>();
+        int selected = 0;
+        
+        try{
+            if(game.isPaused() || game.checkIfGameIsOver()) {
+                return super.chooseModeHelper(modes, source, game);
+            }
+            modeOptions = modes.getAvailableModes(source, game).stream()
+                    .filter(mode -> !modes.getSelectedModes().contains(mode.getId()))
+                    .filter(mode -> mode.getTargets().canChoose(source.getControllerId(), source, game)).collect(Collectors.toList());
+            if(modes.getMinModes() == 0) modeOptions.add(null);
+            if(modeOptions.isEmpty()) {
+                logger.warn("Mode Select: No valid modes available");
+                return null;
+            }
+            selected = makeChoiceAmount(0, modeOptions.size()-1, game, source, false);
+            return modeOptions.get(selected);
+        } catch (IndexOutOfBoundsException e) {
+            logger.error("Mode Select Failed: Index out of bounds", e);
+            return null;
+        } catch (Exception e) {
+            logger.error("Mode Select Failed: " + e.getMessage(), e);
+            return null;
         }
-        List<Mode> modeOptions = modes.getAvailableModes(source, game).stream()
-                .filter(mode -> !modes.getSelectedModes().contains(mode.getId()))
-                .filter(mode -> mode.getTargets().canChoose(source.getControllerId(), source, game)).collect(Collectors.toList());
-        if(modes.getMinModes() == 0) modeOptions.add(null);
-        int selected = makeChoiceAmount(0, modeOptions.size()-1, game, source, false);
-        return modeOptions.get(selected);
+            
     }
     @Override
     protected List<ActivatedAbility> getPlayableAbilities(Game originalGame) {
