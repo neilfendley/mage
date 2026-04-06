@@ -37,6 +37,7 @@ public class KrenkoMain {
         private String playerBOutputDir = null;
         private boolean selfPlay = false;
         private int searchBudget=1000;
+        private int version = 0;
     }
 
     private static Options parseArgs(String[] args) {
@@ -71,18 +72,15 @@ public class KrenkoMain {
                 case "--player-b-type":
                     options.playerBType = args[++i];
                     break;
-                case "--player-a-output-dir":
-                    options.playerAOutputDir = args[++i];
-                    break;
-                case "--player-b-output-dir":
-                    options.playerBOutputDir = args[++i];
-                    break;
                 case "--self-play":
                     options.selfPlay = true;
                     options.playerBType = "mcts";
                     break;
                 case "--search-budget":
                     options.searchBudget = Integer.parseInt(args[++i]);
+                    break;
+                case "--version":
+                    options.version = Integer.parseInt(args[++i]);
                     break;
                 default:
                     throw new IllegalArgumentException("Unknown argument: " + arg);
@@ -114,12 +112,13 @@ public class KrenkoMain {
             Config.INSTANCE.playerB.deckPath = options.opponentDeck;
                 Config.INSTANCE.playerA.type = options.playerAType;
                 Config.INSTANCE.playerB.type = options.playerBType;
-                if (options.playerAOutputDir != null) {
-                    Config.INSTANCE.playerA.outputDir = options.playerAOutputDir;
-                }
-                if (options.playerBOutputDir != null) {
-                    Config.INSTANCE.playerB.outputDir = options.playerBOutputDir;
-                }
+                // if (options.playerAOutputDir != null) {
+                //     Config.INSTANCE.playerA.outputDir = options.playerAOutputDir;
+                // }
+                // if (options.playerBOutputDir != null) {
+                //     Config.INSTANCE.playerB.outputDir = options.playerBOutputDir;
+                // }
+                Config.INSTANCE.outputDir = options.output_dir + "/ver" + options.version;
                 Config.INSTANCE.training.games = options.gamesPerTest;
                 Config.INSTANCE.training.maxTurns = options.maxTurns;
                 Config.INSTANCE.training.threads = options.threads;
