@@ -1,7 +1,7 @@
 # default-config.yaml
 
 goes_first: player_a  # player_a, player_b, random
-output_dir: data
+outputDIR: data
 player_a:
   deckPath: decks/UWTempo.dck
   type: mcts

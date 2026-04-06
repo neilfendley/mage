@@ -42,19 +42,16 @@ THREADS ?= 10
 BUDGET  ?= 1000
 SKILL   ?= 6
 DECK    ?= decks/IzzetElementals.dck
+OP_DECK ?= decks/MonoRAggro.dck
 
 .PHONY: run-krenko
 run-krenko:
 	mvn -pl Mage.Tests exec:java \
 		-Dexec.mainClass="org.mage.test.AI.KrenkoMain" \
 		-Dexec.classpathScope=test \
-		-Dkrenko.games=$(GAMES) \
-		-Dkrenko.tests=$(TESTS) \
-		-Dkrenko.maxTurns=$(TURNS) \
-		-Dkrenko.threads=$(THREADS) \
-		-Dkrenko.searchBudget=$(BUDGET) \
-		-Dkrenko.minimaxSkill=$(SKILL) \
-		-Dkrenko.deck=$(DECK)
+		-Dexec.args="--player-deck $(DECK) --opponent-deck $(OP_DECK) --games-per-test $(GAMES)
+		
+
 
 .PHONY: run-server
 run-server:

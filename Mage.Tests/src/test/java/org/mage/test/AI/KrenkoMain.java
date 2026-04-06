@@ -1,6 +1,8 @@
 package org.mage.test.AI;
 
 import org.mage.magezero.Config;
+
+import mage.cards.repository.CardRepository;
 import mage.cards.repository.CardScanner;
 import mage.cards.repository.RepositoryUtil;
 import org.mage.magezero.ParallelDataGenerator;
@@ -33,8 +35,8 @@ public class KrenkoMain {
         private String opponentDeck = "decks/JeskaiControl.dck";
         private String playerAType = "mcts";
         private String playerBType = "minimax";
-        private String playerAOutputDir = null;
-        private String playerBOutputDir = null;
+        private String outputDir = "data";
+        // private String playerBOutputDir = null;
         private boolean selfPlay = false;
         private int searchBudget=1000;
         private int version = 0;
@@ -97,10 +99,10 @@ public class KrenkoMain {
         Options options = parseArgs(args);
         System.out.println("Current working directory: " + System.getProperty("user.dir"));
         Config.load(options.configPath);
-        if (RepositoryUtil.isDatabaseEmpty()) {
-            RepositoryUtil.bootstrapLocalDb();
-            CardScanner.scan();
-        }
+        // Initialize card database
+        RepositoryUtil.bootstrapLocalDb();
+        CardScanner.scan();
+
         System.out.println("Starting KrenkoMain tests using deck " + options.playerDeck
                 + " against deck: " + options.opponentDeck
                 + " for " + options.gamesPerTest + " games each.");
@@ -118,7 +120,7 @@ public class KrenkoMain {
                 // if (options.playerBOutputDir != null) {
                 //     Config.INSTANCE.playerB.outputDir = options.playerBOutputDir;
                 // }
-                Config.INSTANCE.outputDir = options.output_dir + "/ver" + options.version;
+                Config.INSTANCE.outputDir = options.outputDir + "/ver" + options.version;
                 Config.INSTANCE.training.games = options.gamesPerTest;
                 Config.INSTANCE.training.maxTurns = options.maxTurns;
                 Config.INSTANCE.training.threads = options.threads;

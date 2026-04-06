@@ -38,6 +38,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -270,7 +271,7 @@ public class ParallelDataGenerator {
             if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
                 logger.warn("Executor did not terminate within timeout, forcing shutdown.");
                 executor.shutdownNow();
-                if (!executor.awaitTermination(1, TimeUnit.MINUTE)) {
+                if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
                     logger.error("Executor did not terminate even after forced shutdown.");
                 }
             }
