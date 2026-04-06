@@ -327,7 +327,7 @@ public class MCTSPlayer extends ComputerPlayer {
                     .filter(mode -> mode.getTargets().canChoose(source.getControllerId(), source, game)).collect(Collectors.toList());
             if(modes.getMinModes() == 0) modeOptions.add(null);
             if(modeOptions.isEmpty()) {
-                logger.warn("Mode Select: No valid modes available");
+                // logger.debug("Mode Select: No valid modes available");
                 return null;
             }
             selected = makeChoiceAmount(0, modeOptions.size()-1, game, source, false);
