@@ -58,7 +58,7 @@ public class ParallelDataGenerator {
     public final AtomicInteger winCount = new AtomicInteger(0);
     protected RemoteModelEvaluator remoteModelEvaluatorA = null;
     protected RemoteModelEvaluator remoteModelEvaluatorB = null;
-    private final BlockingQueue<GameResult> LSQueue = new ArrayBlockingQueue<>(32);
+    private final BlockingQueue<GameResult> LSQueue = new LinkedBlockingQueue<>(1024);
     private final AtomicBoolean stop = new AtomicBoolean(false);
     private String deckNameA;
     private String deckNameB;
@@ -225,8 +225,12 @@ public class ParallelDataGenerator {
                     if (batch != null) {
                         for (LabeledState s : batch.getStatesA()) fwA.writeRecord(s);
                         for (LabeledState s : batch.getStatesB()) fwB.writeRecord(s);
-                        fwA.flush();
-                        fwB.flush();
+                        
+                        // Only flush if we've drained the current burst
+                        if (LSQueue.isEmpty()) {
+                            fwA.flush();
+                            fwB.flush();
+                        }
                     }
                 } while (!stop.get() || !LSQueue.isEmpty());
             } catch (Exception e) {
