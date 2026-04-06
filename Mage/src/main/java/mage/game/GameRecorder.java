@@ -49,5 +49,5 @@ public interface GameRecorder {
 
     void trimToCheckpoint(int checkpointSize);
 
-    int writeRLData(String outputPath, boolean playerWon, double tdDiscount);
+    int writeRLData(String playerAPath, String playerBPath, boolean playerWon, double tdDiscount);
 }

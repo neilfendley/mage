@@ -79,13 +79,23 @@ public class ParallelDataGenerator {
         private final List<LabeledState> statesA;
         private final List<LabeledState> statesB;
         private final boolean didPlayerAWin;
-        public GameResult(List<LabeledState> statesA, List<LabeledState> statesB, boolean didPlayerAWin) {
-            this.statesA = statesA; this.statesB = statesB; this.didPlayerAWin = didPlayerAWin;
+        private final FeatureMap featureMapA;  // NEW
+        private final FeatureMap featureMapB;  // NEW
+        
+        public GameResult(List<LabeledState> statesA, List<LabeledState> statesB, 
+                        boolean didPlayerAWin, FeatureMap fmA, FeatureMap fmB) {
+            this.statesA = statesA;
+            this.statesB = statesB;
+            this.didPlayerAWin = didPlayerAWin;
+            this.featureMapA = fmA;  // NEW
+            this.featureMapB = fmB;  // NEW
         }
         public List<LabeledState> getStatesA() { return statesA; }
         public List<LabeledState> getStatesB() { return statesB; }
-        public boolean didPlayerAWin() { return didPlayerAWin; }
+        public FeatureMap getFeatureMapA() { return featureMapA; }
+        public FeatureMap getFeatureMapB() { return featureMapB; }
     }
+    
     /**
      * run once
      */
@@ -151,8 +161,8 @@ public class ParallelDataGenerator {
 
     }
     public void generateData() {
-        Logger.getLogger("org.mage.magezero.ParallelDataGenerator").setLevel(Level.ERROR);
-        Logger.getRootLogger().setLevel(Level.ERROR);
+        // Logger.getLogger("org.mage.magezero.ParallelDataGenerator").setLevel(Level.ERROR);
+        // Logger.getRootLogger().setLevel(Level.ERROR);
         PerfStats.reset();
 
         loadAllFiles();
@@ -277,15 +287,17 @@ public class ParallelDataGenerator {
                 }
             }
 
+            logger.info("Merging feature maps from all threads...");
             for (Future<GameResult> future : futures) {
                 try {
-                    // future.get() will block until the task is complete.
                     GameResult result = future.get();
-                    if (result.didPlayerAWin()) {
-                        wins++;
+                    synchronized (seenFeatures) {  // Single lock, batched
+                        seenFeatures.merge(result.getFeatureMapA());
+                        if (result.getFeatureMapB() != null) {
+                            seenFeatures.merge(result.getFeatureMapB());
+                        }
                     }
-                    successfulGames++;
-
+                    // ... rest of counting ...
                 } catch (ExecutionException e) {
                     failedGames++;
                     logger.error("A game simulation failed and its result will be ignored. Cause: " + e.getCause());
@@ -374,15 +386,17 @@ public class ParallelDataGenerator {
             PerfStats.gameCount.incrementAndGet();
             boolean playerAWon = playerA.hasWon();
             //merge to the final features
-            synchronized (seenFeatures) {
-                seenFeatures.merge(threadEncoderA.featureMap);
-            }
+            // synchronized (seenFeatures) {
+            //     seenFeatures.merge(threadEncoderA.featureMap);
+            // }
             if(playerA.hasWon()) winCount.incrementAndGet();
             logger.info("Game #" + gameCount.incrementAndGet() + " completed successfully");
             logger.info("Current WR: " + winCount.get()*1.0/gameCount.get());
             List<LabeledState> statesA = generateLabeledStatesForGame(threadEncoderA, playerAWon, Config.INSTANCE.playerA.mcts.tdDiscount);
             List<LabeledState> statesB = generateLabeledStatesForGame(threadEncoderB, !playerAWon, Config.INSTANCE.playerB.mcts.tdDiscount);
-            return new GameResult(statesA, statesB, playerAWon);
+            FeatureMap fmA = threadEncoderA.featureMap;
+            FeatureMap fmB = threadEncoderB.featureMap;
+            return new GameResult(statesA, statesB, playerAWon, fmA, fmB);
         } catch (Exception e) {
             logger.error("Caught an internal AI/Game exception in a worker thread. Ignoring this game. Cause: " + e.getMessage());
             e.printStackTrace();

@@ -66,11 +66,11 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
                 // Find an AI opponent
                 for (UUID opponentId : game.getOpponents(player.getId())) {
                     Player opponent = game.getPlayer(opponentId);
-                    if (opponent != null && opponent.isComputer()) {
+                    if (opponent != null && opponent.getRecorder() == null) {
                         GameRecorder recorder = GameRecorder.Factory.create(player.getId(), opponentId);
                         if (recorder != null) {
                             player.setRecorder(recorder);
-                            logger.info("RL recording enabled for human player: " + player.getName()
+                            logger.info("RL recording enabled for player: " + player.getName()
                                     + " (vs " + opponent.getName() + ")");
                         } else {
                             logger.warn("RL recording factory not registered — is mage-player-ai loaded?");
@@ -93,16 +93,33 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
             try {
                 Path dir = Paths.get(outputDir);
                 Files.createDirectories(dir);
-
+                Player opponent = null;
+                String deckName = "Unknown";
+                if (player.getMatchPlayer() != null && player.getMatchPlayer().getDeck() != null) {
+                    deckName = player.getMatchPlayer().getDeck().getName();
+                }
+                String oppDeckName = "Unknown";
+                for (UUID opponentId : game.getOpponents(player.getId())) {
+                    opponent = game.getPlayer(opponentId);
+                    if (opponent != null && opponent.getMatchPlayer() != null && opponent.getMatchPlayer().getDeck() != null) {
+                        oppDeckName = opponent.getMatchPlayer().getDeck().getName();
+                        break;
+                    }
+                }
+                
                 String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-                String fileName = String.format("%s_%s_%s.hdf5",
-                        player.getName(), game.getId().toString().substring(0, 8), timestamp);
-                String outputPath = dir.resolve(fileName).toString();
+                String playerAPath = String.format("%s_vs_%s.%s.hdf5",
+                                deckName, oppDeckName, timestamp);
+                String playerBPath = String.format("%s_vs_%s.%s_vs_%s.%s.hdf5",
+                                oppDeckName, deckName, player.getName(), opponent.getName(), timestamp);
+                String outputPatha = dir.resolve(playerAPath).toString();
+                String outputPathb = dir.resolve(playerBPath).toString();
 
-                int written = recorder.writeRLData(outputPath, player.hasWon(), TD_DISCOUNT);
+
+                int written = recorder.writeRLData(outputPatha, outputPathb, player.hasWon(), TD_DISCOUNT);
                 if (written > 0) {
                     logger.info("RL training data: wrote " + written + " states for "
-                            + player.getName() + " to " + outputPath);
+                            + player.getName() + " deck: " + deckName + ", opponent deck: " + oppDeckName + ")");
                 }
             } catch (Exception e) {
                 logger.error("Failed to write RL training data for " + player.getName() + ": " + e.getMessage());
