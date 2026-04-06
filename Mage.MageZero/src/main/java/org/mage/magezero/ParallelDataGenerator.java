@@ -76,12 +76,18 @@ public class ParallelDataGenerator {
     private static class GameResult {
         private final List<LabeledState> statesA;
         private final List<LabeledState> statesB;
+        private final FeatureMap featuresA;
+        private final FeatureMap featuresB;
         private final boolean didPlayerAWin;
-        public GameResult(List<LabeledState> statesA, List<LabeledState> statesB, boolean didPlayerAWin) {
-            this.statesA = statesA; this.statesB = statesB; this.didPlayerAWin = didPlayerAWin;
+        public GameResult(List<LabeledState> statesA, List<LabeledState> statesB, FeatureMap featuresA, FeatureMap featuresB, boolean didPlayerAWin) {
+            this.statesA = statesA; this.statesB = statesB;
+            this.featuresA = featuresA; this.featuresB = featuresB;
+            this.didPlayerAWin = didPlayerAWin;
         }
         public List<LabeledState> getStatesA() { return statesA; }
         public List<LabeledState> getStatesB() { return statesB; }
+        public FeatureMap getFeaturesA() { return featuresA; }
+        public FeatureMap getFeaturesB() { return featuresB; }
         public boolean didPlayerAWin() { return didPlayerAWin; }
     }
     /**
@@ -226,6 +232,12 @@ public class ParallelDataGenerator {
                         for (LabeledState s : batch.getStatesA()) fwA.writeRecord(s);
                         for (LabeledState s : batch.getStatesB()) fwB.writeRecord(s);
                         
+                        // Merge features in the writer thread
+                        synchronized (seenFeatures) {
+                            seenFeatures.merge(batch.getFeaturesA());
+                            seenFeatures.merge(batch.getFeaturesB());
+                        }
+
                         // Only flush if we've drained the current burst
                         if (LSQueue.isEmpty()) {
                             fwA.flush();
@@ -365,16 +377,13 @@ public class ParallelDataGenerator {
             PerfStats.gameTimeNs.addAndGet(System.nanoTime() - _gameStart);
             PerfStats.gameCount.incrementAndGet();
             boolean playerAWon = playerA.hasWon();
-            //merge to the final features
-            synchronized (seenFeatures) {
-                seenFeatures.merge(threadEncoderA.featureMap);
-            }
+            
             if(playerA.hasWon()) winCount.incrementAndGet();
             logger.info("Game #" + gameCount.incrementAndGet() + " completed successfully");
             logger.info("Current WR: " + winCount.get()*1.0/gameCount.get());
             List<LabeledState> statesA = generateLabeledStatesForGame(threadEncoderA, playerAWon, Config.INSTANCE.playerA.mcts.tdDiscount);
             List<LabeledState> statesB = generateLabeledStatesForGame(threadEncoderB, !playerAWon, Config.INSTANCE.playerB.mcts.tdDiscount);
-            return new GameResult(statesA, statesB, playerAWon);
+            return new GameResult(statesA, statesB, threadEncoderA.featureMap, threadEncoderB.featureMap, playerAWon);
         } catch (Exception e) {
             logger.error("Caught an internal AI/Game exception in a worker thread. Ignoring this game. Cause: " + e.getMessage());
             e.printStackTrace();
