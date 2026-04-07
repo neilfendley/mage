@@ -81,17 +81,23 @@ public class ParallelDataGenerator {
         private final FeatureMap featuresA;
         private final FeatureMap featuresB;
         private final boolean didPlayerAWin;
-        public GameResult(List<LabeledState> statesA, List<LabeledState> statesB, FeatureMap featuresA, FeatureMap featuresB, boolean didPlayerAWin) {
-            this.statesA = statesA; this.statesB = statesB;
-            this.featuresA = featuresA; this.featuresB = featuresB;
+        private final FeatureMap featureMapA;  // NEW
+        private final FeatureMap featureMapB;  // NEW
+        
+        public GameResult(List<LabeledState> statesA, List<LabeledState> statesB, 
+                        boolean didPlayerAWin, FeatureMap fmA, FeatureMap fmB) {
+            this.statesA = statesA;
+            this.statesB = statesB;
             this.didPlayerAWin = didPlayerAWin;
+            this.featureMapA = fmA;  // NEW
+            this.featureMapB = fmB;  // NEW
         }
         public List<LabeledState> getStatesA() { return statesA; }
         public List<LabeledState> getStatesB() { return statesB; }
-        public FeatureMap getFeaturesA() { return featuresA; }
-        public FeatureMap getFeaturesB() { return featuresB; }
-        public boolean didPlayerAWin() { return didPlayerAWin; }
+        public FeatureMap getFeatureMapA() { return featureMapA; }
+        public FeatureMap getFeatureMapB() { return featureMapB; }
     }
+    
     /**
      * run once
      */
@@ -236,8 +242,8 @@ public class ParallelDataGenerator {
                         
                         // Merge features in the writer thread
                         synchronized (seenFeatures) {
-                            seenFeatures.merge(batch.getFeaturesA());
-                            seenFeatures.merge(batch.getFeaturesB());
+                            seenFeatures.merge(batch.getFeatureMapA());
+                            seenFeatures.merge(batch.getFeatureMapB());
                         }
 
                         // Only flush if we've drained the current burst
@@ -293,15 +299,17 @@ public class ParallelDataGenerator {
                 }
             }
 
+            logger.info("Merging feature maps from all threads...");
             for (Future<GameResult> future : futures) {
                 try {
-                    // future.get() will block until the task is complete.
                     GameResult result = future.get();
-                    if (result.didPlayerAWin()) {
-                        wins++;
+                    synchronized (seenFeatures) {  // Single lock, batched
+                        seenFeatures.merge(result.getFeatureMapA());
+                        if (result.getFeatureMapB() != null) {
+                            seenFeatures.merge(result.getFeatureMapB());
+                        }
                     }
-                    successfulGames++;
-
+                    // ... rest of counting ...
                 } catch (ExecutionException e) {
                     failedGames++;
                     logger.error("A game simulation failed and its result will be ignored. Cause: " + e.getCause());
@@ -395,7 +403,9 @@ public class ParallelDataGenerator {
             logger.info("Current WR: " + winCount.get()*1.0/gameCount.get());
             List<LabeledState> statesA = generateLabeledStatesForGame(threadEncoderA, playerAWon, Config.INSTANCE.playerA.mcts.tdDiscount);
             List<LabeledState> statesB = generateLabeledStatesForGame(threadEncoderB, !playerAWon, Config.INSTANCE.playerB.mcts.tdDiscount);
-            return new GameResult(statesA, statesB, threadEncoderA.featureMap, threadEncoderB.featureMap, playerAWon);
+            FeatureMap fmA = threadEncoderA.featureMap;
+            FeatureMap fmB = threadEncoderB.featureMap;
+            return new GameResult(statesA, statesB, playerAWon, fmA, fmB);
         } catch (Exception e) {
             logger.error("Caught an internal AI/Game exception in a worker thread. Ignoring this game. Cause: " + e.getMessage());
             e.printStackTrace();
