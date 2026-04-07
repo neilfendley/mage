@@ -299,7 +299,12 @@ public class ComputerPlayerMCTS extends ComputerPlayer {
                 .filter(mode -> mode.getTargets().canChoose(source.getControllerId(), source, game)).collect(Collectors.toList());
         if(modes.getMinModes() == 0) modeOptions.add(null);
         int chosenMode = makeChoiceAmount(0, modeOptions.size()-1, game, source, false);
-        return modeOptions.get(chosenMode);
+        try{
+            return modeOptions.get(chosenMode);
+        } catch (Exception e) {
+            return null;
+        }
+        
     }
     @Override
     public boolean chooseUse(Outcome outcome, String message, String secondMessage, String trueText, String falseText, Ability source, Game game) {
