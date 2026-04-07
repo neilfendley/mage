@@ -38,7 +38,7 @@ public class KrenkoMain {
         private String playerDeck = PLAYER_DECK;
         private String opponentDeck = "decks/JeskaiControl.dck";
         private String playerAType = "mcts";
-        private String playerBType = "minimax";
+        private String playerBType = "mcts";
         private String outputDir = "data";
         private int version = 0;
     }
