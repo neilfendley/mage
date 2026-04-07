@@ -13,9 +13,14 @@ import mage.target.Target;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Date;
+
 
 /**
  * Records game decisions for RL training data. Encapsulates all StateEncoder/ActionEncoder
@@ -165,7 +170,7 @@ public class PlayerRecorder implements GameRecorder {
     }
 
     @Override
-    public int writeRLData(String outputPath, boolean playerWon, double tdDiscount) {
+    public int writeRLData(String playerAPath, String playerBPath, boolean playerWon, double tdDiscount) {
         if (stateEncoder.labeledStates.isEmpty()) {
             return 0;
         }
@@ -174,16 +179,28 @@ public class PlayerRecorder implements GameRecorder {
         applyTDDiscount(states, playerWon, tdDiscount);
 
         // Write HDF5 in the same CSR format as MageZero training pipeline
-        String hdf5Path = outputPath.endsWith(".hdf5") ? outputPath : outputPath.replace(".bin", ".hdf5");
-        try (LabeledStateWriter writer = new LabeledStateWriter(hdf5Path)) {
+        // String hdf5Path = outputPath.endsWith(".hdf5") ? outputPath : outputPath.replace(".bin", ".hdf5");
+        LabeledStateWriter fwA;
+        LabeledStateWriter fwB;
+        try {
+            fwA = new LabeledStateWriter(playerAPath);
+            fwB = new LabeledStateWriter(playerBPath);
+        
             for (LabeledState state : states) {
-                writer.writeRecord(state);
+                if (state.isPlayer){ 
+                    fwA.writeRecord(state);
+                } else {
+                    fwB.writeRecord(state);
+                }
             }
-            logger.info("Wrote " + states.size() + " RL training states to " + hdf5Path);
-            return states.size();
+        
+            fwA.close();
+            fwB.close();
         } catch (IOException e) {
-            logger.error("Failed to write RL training data: " + e.getMessage());
-            return -1;
+            logger.error("Failed to write RL training data files: " + e.getMessage());
         }
+        logger.info("Wrote " + states.size() + " RL training states to " + playerAPath + " and " + playerBPath);
+        return states.size();
+        
     }
 }
