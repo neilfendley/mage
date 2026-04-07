@@ -294,9 +294,10 @@ public class HumanRecordingTest {
 
         Path tempDir = Files.createTempDirectory("rl_test_");
         tempDir.toFile().deleteOnExit();
-        File outputFile = tempDir.resolve("output.hdf5").toFile();
+        File outputFile = tempDir.resolve("outputa.hdf5").toFile();
+        File outputFileb = tempDir.resolve("outputb.hdf5").toFile();
 
-        int written = human.writeRLData(outputFile.getAbsolutePath(), true, 0.95);
+        int written = human.writeRLData(outputFile.getAbsolutePath(), outputFileb.getAbsolutePath(), true, 0.95);
         assertEquals(5, written, "Should write 5 states");
         assertTrue(outputFile.exists() && outputFile.length() > 0, "Output file should exist and be non-empty");
 
@@ -331,7 +332,7 @@ public class HumanRecordingTest {
         Path tempDir = Files.createTempDirectory("rl_td_test_");
         tempDir.toFile().deleteOnExit();
 
-        human.writeRLData(tempDir.resolve("output.hdf5").toString(), true, 0.95);
+        human.writeRLData(tempDir.resolve("outputa.hdf5").toString(), tempDir.resolve("outputb.hdf5").toString(), true, 0.95);
 
         // After writing, the encoder's states should have resultLabels set
         for (LabeledState ls : encoder.labeledStates) {
@@ -345,7 +346,7 @@ public class HumanRecordingTest {
     void testWriteRLDataReturnsZeroWhenDisabled() {
         HumanPlayer human = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
         // Recording not enabled
-        int written = human.writeRLData("/tmp/should_not_exist.hdf5", true, 0.95);
+        int written = human.writeRLData("/tmp/should_not_exist.hdf5","/tmp/should_not_exist.hdf5", true, 0.95);
 
         assertEquals(0, written, "Should return 0 when recording is disabled");
     }
@@ -440,7 +441,8 @@ public class HumanRecordingTest {
         Path tempDir = Files.createTempDirectory("rl_metadata_test_");
         tempDir.toFile().deleteOnExit();
         File outputFile = tempDir.resolve("output.hdf5").toFile();
-        int written = human.writeRLData(outputFile.getAbsolutePath(), true, 0.95);
+        File outputFileb = tempDir.resolve("output.b.hdf5").toFile();
+        int written = human.writeRLData(outputFile.getAbsolutePath(), outputFileb.getAbsolutePath(), true, 0.95);
         assertEquals(2, written, "Should write 2 states");
 
         try (IHDF5Reader reader = HDF5Factory.openForReading(outputFile)) {
