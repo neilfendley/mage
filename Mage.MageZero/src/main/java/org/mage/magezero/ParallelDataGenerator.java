@@ -60,7 +60,7 @@ public class ParallelDataGenerator {
     public final AtomicInteger winCount = new AtomicInteger(0);
     protected RemoteModelEvaluator remoteModelEvaluatorA = null;
     protected RemoteModelEvaluator remoteModelEvaluatorB = null;
-    private final BlockingQueue<GameResult> LSQueue = new ArrayBlockingQueue<>(32);
+    private final BlockingQueue<GameResult> LSQueue = new LinkedBlockingQueue<>(1024);
     private final AtomicBoolean stop = new AtomicBoolean(false);
     private String deckNameA;
     private String deckNameB;
@@ -78,6 +78,8 @@ public class ParallelDataGenerator {
     private static class GameResult {
         private final List<LabeledState> statesA;
         private final List<LabeledState> statesB;
+        private final FeatureMap featuresA;
+        private final FeatureMap featuresB;
         private final boolean didPlayerAWin;
         private final FeatureMap featureMapA;  // NEW
         private final FeatureMap featureMapB;  // NEW
@@ -237,8 +239,18 @@ public class ParallelDataGenerator {
                     if (batch != null) {
                         for (LabeledState s : batch.getStatesA()) fwA.writeRecord(s);
                         for (LabeledState s : batch.getStatesB()) fwB.writeRecord(s);
-                        fwA.flush();
-                        fwB.flush();
+                        
+                        // Merge features in the writer thread
+                        synchronized (seenFeatures) {
+                            seenFeatures.merge(batch.getFeatureMapA());
+                            seenFeatures.merge(batch.getFeatureMapB());
+                        }
+
+                        // Only flush if we've drained the current burst
+                        if (LSQueue.isEmpty()) {
+                            fwA.flush();
+                            fwB.flush();
+                        }
                     }
                 } while (!stop.get() || !LSQueue.isEmpty());
             } catch (Exception e) {
@@ -385,10 +397,7 @@ public class ParallelDataGenerator {
             PerfStats.gameTimeNs.addAndGet(System.nanoTime() - _gameStart);
             PerfStats.gameCount.incrementAndGet();
             boolean playerAWon = playerA.hasWon();
-            //merge to the final features
-            // synchronized (seenFeatures) {
-            //     seenFeatures.merge(threadEncoderA.featureMap);
-            // }
+            
             if(playerA.hasWon()) winCount.incrementAndGet();
             logger.info("Game #" + gameCount.incrementAndGet() + " completed successfully");
             logger.info("Current WR: " + winCount.get()*1.0/gameCount.get());
