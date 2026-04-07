@@ -36,6 +36,14 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
+import java.io.ObjectOutputStream;
+import java.io.ObjectInputStream;
+import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedInputStream;
+import java.io.EOFException;
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -58,7 +66,15 @@ public class ParallelDataGenerator {
     public final AtomicInteger winCount = new AtomicInteger(0);
     protected RemoteModelEvaluator remoteModelEvaluatorA = null;
     protected RemoteModelEvaluator remoteModelEvaluatorB = null;
+    // Note: keep LSQueue for backward compatibility but not used in per-worker temp mode
     private final BlockingQueue<GameResult> LSQueue = new LinkedBlockingQueue<>(1024);
+    // Per-thread temporary serialized output streams (index 0 -> A, 1 -> B)
+    private final ThreadLocal<ObjectOutputStream[]> threadTempStreams = new ThreadLocal<>();
+    // Track temp files created by workers so we can merge them at the end
+    private final List<Path> tempFilesA = Collections.synchronizedList(new ArrayList<>());
+    private final List<Path> tempFilesB = Collections.synchronizedList(new ArrayList<>());
+    // Keep references to created streams so we can close them before merging
+    private final List<ObjectOutputStream> createdTempStreams = Collections.synchronizedList(new ArrayList<>());
     private final AtomicBoolean stop = new AtomicBoolean(false);
     private String deckNameA;
     private String deckNameB;
@@ -73,7 +89,8 @@ public class ParallelDataGenerator {
 
 
 
-    private static class GameResult {
+    private static class GameResult implements Serializable {
+        private static final long serialVersionUID = 1L;
         private final List<LabeledState> statesA;
         private final List<LabeledState> statesB;
         private final FeatureMap featureMapA;
@@ -188,7 +205,6 @@ public class ParallelDataGenerator {
         try {
             fwA = new LabeledStateWriter(Config.INSTANCE.outputDir + "/" + fileA);
             fwB = new LabeledStateWriter(Config.INSTANCE.outputDir + "/" + fileB);
-            writer = getThread(fwA, fwB);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -205,11 +221,12 @@ public class ParallelDataGenerator {
 
         runSimulations(Config.INSTANCE.training.games);
 
-        //end writer thread
-        stop.set(true);
+        // Close any per-thread temp streams and merge temp files into final HDF5 outputs
         try {
-            writer.join();
-        } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+            mergeTempFiles(fwA, fwB);
+        } catch (Exception e) {
+            logger.error("Failed while merging temp files: " + e.getMessage(), e);
+        }
 
         saveFeatureMap(seenFeatures, SEEN_FEATURES_PATH);
 
@@ -273,7 +290,12 @@ public class ParallelDataGenerator {
                 @Override
                 public GameResult call() throws Exception {
                     GameResult out = runSingleGame();
-                    LSQueue.put(out);
+                    // Write this game's result to a per-thread temp file to avoid a single writer bottleneck
+                    try {
+                        writeTempGameResult(out);
+                    } catch (Exception e) {
+                        logger.warn("Failed to write temp game result: " + e.getMessage(), e);
+                    }
                     return out;
                 }
             });
@@ -294,23 +316,16 @@ public class ParallelDataGenerator {
                 }
             }
 
-            logger.info("Merging feature maps from all threads...");
+            // We don't merge feature maps here; worker threads wrote serialized GameResults to per-thread temp files.
+            // The merging into the global feature map and HDF5 files will be done after all threads terminate.
             for (Future<GameResult> future : futures) {
                 try {
-                    GameResult result = future.get();
-                    synchronized (seenFeatures) {  // Single lock, batched
-                        seenFeatures.merge(result.getFeatureMapA());
-                        if (result.getFeatureMapB() != null) {
-                            seenFeatures.merge(result.getFeatureMapB());
-                        }
-                    }
-                    // ... rest of counting ...
+                    future.get();
                 } catch (ExecutionException e) {
                     failedGames++;
                     logger.error("A game simulation failed and its result will be ignored. Cause: " + e.getCause());
-                    e.getCause().printStackTrace();
+                    if (e.getCause() != null) e.getCause().printStackTrace();
                 }
-                // The loop continues to the next future, ignoring the failed one.
             }
         } catch (InterruptedException e) {
             logger.error("Main simulation thread was interrupted. Shutting down.");
@@ -406,6 +421,72 @@ public class ParallelDataGenerator {
             e.printStackTrace();
             throw new ExecutionException("Worker thread failed - ignoring", e);
         }
+    }
+
+    private ObjectOutputStream[] createThreadTempStreams() throws IOException {
+        String uid = Thread.currentThread().getId() + "-" + UUID.randomUUID().toString();
+        Path p = Paths.get(Config.INSTANCE.outputDir, deckNameA + "_tmp_" + uid + ".gr");
+        Files.createFile(p);
+        ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(p.toFile(), true)));
+        ObjectOutputStream[] arr = new ObjectOutputStream[]{oos, null};
+        threadTempStreams.set(arr);
+        tempFilesA.add(p);
+        createdTempStreams.add(oos);
+        return arr;
+    }
+
+    private void writeTempGameResult(GameResult out) throws IOException {
+        ObjectOutputStream[] streams = threadTempStreams.get();
+        if (streams == null) streams = createThreadTempStreams();
+        ObjectOutputStream oos = streams[0];
+        synchronized (oos) {
+            oos.writeObject(out);
+            oos.flush();
+        }
+    }
+
+    private void mergeTempFiles(LabeledStateWriter fwA, LabeledStateWriter fwB) throws IOException, ClassNotFoundException {
+        // Close any remaining open per-thread streams to flush data to disk
+        synchronized (createdTempStreams) {
+            for (ObjectOutputStream oos : createdTempStreams) {
+                try { oos.close(); } catch (Exception ignore) {}
+            }
+            createdTempStreams.clear();
+        }
+
+        // Read each temp file and write its GameResults into the final writers
+        for (Path p : new ArrayList<>(tempFilesA)) {
+            try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(p.toFile())))) {
+                while (true) {
+                    try {
+                        Object obj = ois.readObject();
+                        if (!(obj instanceof GameResult)) continue;
+                        GameResult gr = (GameResult) obj;
+                        if (gr.getStatesA() != null) {
+                            for (LabeledState s : gr.getStatesA()) fwA.writeRecord(s);
+                        }
+                        if (gr.getStatesB() != null) {
+                            for (LabeledState s : gr.getStatesB()) fwB.writeRecord(s);
+                        }
+                        // Merge feature maps
+                        synchronized (seenFeatures) {
+                            if (gr.getFeatureMapA() != null) seenFeatures.merge(gr.getFeatureMapA());
+                            if (gr.getFeatureMapB() != null) seenFeatures.merge(gr.getFeatureMapB());
+                        }
+                    } catch (EOFException eof) {
+                        break;
+                    }
+                }
+            } finally {
+                try { Files.deleteIfExists(p); } catch (Exception ignore) {}
+            }
+        }
+
+        // flush and close final writers
+        try { fwA.flush(); } catch (Exception ignore) {}
+        try { fwB.flush(); } catch (Exception ignore) {}
+        try { fwA.close(); } catch (Exception ignore) {}
+        try { fwB.close(); } catch (Exception ignore) {}
     }
 
     protected void configurePlayer(Player player, StateEncoder encoder, StateEncoder opponentEncoder) {
