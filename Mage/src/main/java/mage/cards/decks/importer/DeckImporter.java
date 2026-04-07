@@ -83,7 +83,17 @@ public abstract class DeckImporter {
     public static DeckCardLists importDeckFromFile(String file, StringBuilder errorMessages, boolean saveAutoFixedFile) {
         DeckImporter deckImporter = getDeckImporter(file);
         if (deckImporter != null) {
-            return deckImporter.importDeck(file, errorMessages, saveAutoFixedFile);
+            DeckCardLists deckList = deckImporter.importDeck(file, errorMessages, saveAutoFixedFile);
+            if (deckList != null && (deckList.getName() == null || deckList.getName().isEmpty())) {
+                File f = new File(file);
+                String name = f.getName();
+                int pos = name.lastIndexOf(".");
+                if (pos > 0) {
+                    name = name.substring(0, pos);
+                }
+                deckList.setName(name);
+            }
+            return deckList;
         } else {
             return new DeckCardLists();
         }

@@ -97,12 +97,18 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
                 String deckName = "Unknown";
                 if (player.getMatchPlayer() != null && player.getMatchPlayer().getDeck() != null) {
                     deckName = player.getMatchPlayer().getDeck().getName();
+                    if (deckName == null || deckName.isEmpty()) {
+                        deckName = "FoundNoName";
+                    }
                 }
                 String oppDeckName = "Unknown";
                 for (UUID opponentId : game.getOpponents(player.getId())) {
                     opponent = game.getPlayer(opponentId);
                     if (opponent != null && opponent.getMatchPlayer() != null && opponent.getMatchPlayer().getDeck() != null) {
                         oppDeckName = opponent.getMatchPlayer().getDeck().getName();
+                        if (oppDeckName == null || oppDeckName.isEmpty()) {
+                            oppDeckName = "FoundNoName";
+                        }
                         break;
                     }
                 }
@@ -111,7 +117,7 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
                 String playerAPath = String.format("%s_vs_%s.%s.hdf5",
                                 deckName, oppDeckName, timestamp);
                 String playerBPath = String.format("%s_vs_%s.%s_vs_%s.%s.hdf5",
-                                oppDeckName, deckName, player.getName(), opponent.getName(), timestamp);
+                                oppDeckName, deckName, player.getName(), opponent != null ? opponent.getName() : "NoOpponent", timestamp);
                 String outputPatha = dir.resolve(playerAPath).toString();
                 String outputPathb = dir.resolve(playerBPath).toString();
 
