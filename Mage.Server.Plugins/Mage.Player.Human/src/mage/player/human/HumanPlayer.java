@@ -153,7 +153,7 @@ public class HumanPlayer extends PlayerImpl {
         return recorder != null;
     }
 
-    int writeRLData(String playerAPath, String playerBPath, boolean playerWon, double tdDiscount) {
+    public int writeRLData(String playerAPath, String playerBPath, boolean playerWon, double tdDiscount) {
         return recorder != null ? recorder.writeRLData(playerAPath, playerBPath, playerWon, tdDiscount) : 0;
     }
 
