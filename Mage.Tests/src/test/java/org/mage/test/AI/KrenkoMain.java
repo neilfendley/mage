@@ -78,6 +78,9 @@ public class KrenkoMain {
                 case "--version":
                     options.version = Integer.parseInt(args[++i]);
                     break;
+                case "--output-dir":
+                    options.outputDir = args[++i];
+                    break;
                 default:
                     throw new IllegalArgumentException("Unknown argument: " + arg);
             }
