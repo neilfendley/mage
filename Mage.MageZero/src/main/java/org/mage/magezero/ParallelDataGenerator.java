@@ -19,7 +19,6 @@ import mage.player.ai.encoder.LabeledState;
 import mage.player.ai.encoder.LabeledStateWriter;
 import mage.player.ai.encoder.StateEncoder;
 import mage.player.ai.recorder.PlayerRecorder;
-import mage.player.ai.RemoteModelEvaluator;
 import mage.players.Player;
 import mage.util.RandomUtil;
 import org.apache.log4j.Logger;
@@ -39,7 +38,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -78,12 +76,9 @@ public class ParallelDataGenerator {
     private static class GameResult {
         private final List<LabeledState> statesA;
         private final List<LabeledState> statesB;
-        private final FeatureMap featuresA;
-        private final FeatureMap featuresB;
-        private final boolean didPlayerAWin;
-        private final FeatureMap featureMapA;  // NEW
-        private final FeatureMap featureMapB;  // NEW
-        
+        private final FeatureMap featureMapA;
+        private final FeatureMap featureMapB;
+        private final boolean didPlayerAWin;       
         public GameResult(List<LabeledState> statesA, List<LabeledState> statesB, 
                         boolean didPlayerAWin, FeatureMap fmA, FeatureMap fmB) {
             this.statesA = statesA;
