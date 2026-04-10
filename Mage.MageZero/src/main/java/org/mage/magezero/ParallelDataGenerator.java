@@ -284,47 +284,42 @@ public class ParallelDataGenerator {
         logger.info(String.format("Simulating %d games. Using thread pool of size %d on %d available cores.", numGames, poolSize, availableCores));
 
         ExecutorService executor = Executors.newFixedThreadPool(poolSize);
-        List<Callable<GameResult>> tasks = new ArrayList<>();
-        for (int i = 0; i < numGames; i++) {
-            tasks.add(new Callable<GameResult>() {
-                @Override
-                public GameResult call() throws Exception {
+        CompletionService<Void> completionService = new ExecutorCompletionService<>(executor);
+        int wins = 0;
+        int successfulGames = 0;
+        int failedGames = 0;
+        try {
+            for (int i = 0; i < numGames; i++) {
+                completionService.submit(() -> {
                     GameResult out = runSingleGame();
-                    // Write this game's result to a per-thread temp file to avoid a single writer bottleneck
                     try {
                         writeTempGameResult(out);
                     } catch (Exception e) {
                         logger.warn("Failed to write temp game result: " + e.getMessage(), e);
                     }
-                    return out;
+                    return null;
+                });
+            }
+
+            for (int i = 0; i < numGames; i++) {
+                try {
+                    completionService.take().get();
+                    successfulGames++;
+                } catch (ExecutionException e) {
+                    failedGames++;
+                    logger.error("A game simulation failed and its result will be ignored. Cause: " + e.getCause());
+                    if (e.getCause() != null) e.getCause().printStackTrace();
                 }
-            });
-        }
-        int wins = 0;
-        int successfulGames = 0;
-        int failedGames = 0;
-        try {
-            List<Future<GameResult>> futures = executor.invokeAll(tasks);
+            }
+
             executor.shutdown();
-            
+
             // Wait for executor to terminate all threads
             if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
                 logger.warn("Executor did not terminate within timeout, forcing shutdown.");
                 executor.shutdownNow();
                 if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
                     logger.error("Executor did not terminate even after forced shutdown.");
-                }
-            }
-
-            // We don't merge feature maps here; worker threads wrote serialized GameResults to per-thread temp files.
-            // The merging into the global feature map and HDF5 files will be done after all threads terminate.
-            for (Future<GameResult> future : futures) {
-                try {
-                    future.get();
-                } catch (ExecutionException e) {
-                    failedGames++;
-                    logger.error("A game simulation failed and its result will be ignored. Cause: " + e.getCause());
-                    if (e.getCause() != null) e.getCause().printStackTrace();
                 }
             }
         } catch (InterruptedException e) {
@@ -441,6 +436,8 @@ public class ParallelDataGenerator {
         ObjectOutputStream oos = streams[0];
         synchronized (oos) {
             oos.writeObject(out);
+            // Prevent ObjectOutputStream from retaining references to every prior game.
+            oos.reset();
             oos.flush();
         }
     }

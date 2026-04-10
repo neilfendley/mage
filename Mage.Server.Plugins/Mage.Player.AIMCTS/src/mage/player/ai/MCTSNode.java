@@ -226,13 +226,18 @@ public class MCTSNode {
         PlayerScript myScript = new PlayerScript();
         PlayerScript opponentScript = new PlayerScript();
         populateActionScripts(myScript, opponentScript);
-        GameState baseState;
-        if(parent == null) {
-            baseState = state.copy();
+        MCTSNode baseNode = parent == null ? this : parent;
+        if (basePlayer.loadedStateNode != baseNode) {
+            GameState baseState;
+            if (parent == null) {
+                baseState = state.copy();
+            } else {
+                baseState = parent.state.copy();
+            }
+            resetRootGame(baseState);
         } else {
-            baseState = parent.state.copy();
+            clearRootPlayers();
         }
-        resetRootGame(baseState);
         MCTSPlayer playerA = (MCTSPlayer) rootGame.getPlayer(targetPlayer);
         MCTSPlayer playerB =  (MCTSPlayer) rootGame.getOpponent(targetPlayer);
         playerA.actionScript = myScript; //set base player actions
@@ -251,6 +256,7 @@ public class MCTSNode {
         this.winner = isWinner(rootGame, targetPlayer);
         this.prefixScript = new PlayerScript(playerA.getPlayerHistory());
         this.opponentPrefixScript = new PlayerScript(playerB.getPlayerHistory());
+        basePlayer.loadedStateNode = this;
 
         if(this.terminal) return; //cant determine acting player after game has ended
 
@@ -301,6 +307,10 @@ public class MCTSNode {
         rootGame.resetLKI();
         rootGame.resetShortLivingLKI();
         rootGame.applyEffects(); // rebuild layers/CEs
+        clearRootPlayers();
+    }
+
+    private void clearRootPlayers() {
         //for sanity
         for (Player p : rootGame.getPlayers().values()) {
             MCTSPlayer mp = (MCTSPlayer) p;

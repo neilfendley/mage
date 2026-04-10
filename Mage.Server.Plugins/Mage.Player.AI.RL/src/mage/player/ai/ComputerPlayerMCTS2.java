@@ -251,6 +251,7 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
         PlayerScript prefixScript = new PlayerScript(getPlayerHistory());
         PlayerScript opponentPrefixScript = new PlayerScript(game.getOpponent(playerId).getPlayerHistory());
         MCTSNode2 newRoot = new MCTSNode2(this, sim, actionType, prefixScript, opponentPrefixScript);
+        loadedStateNode = null;
 
         //do first expansion automatically
         newRoot.validateState();
@@ -268,6 +269,7 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
             root = newRoot;
         }
         root.emancipate();
+        loadedStateNode = root == newRoot ? root : null;
         return (MCTSNode2) calculateActions(game, actionType);
     }
     @Override

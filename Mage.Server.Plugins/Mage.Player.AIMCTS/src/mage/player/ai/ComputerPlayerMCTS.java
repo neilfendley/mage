@@ -56,6 +56,8 @@ public class ComputerPlayerMCTS extends ComputerPlayer {
     public static int MAX_TREE_NODES = 100000;
 
     public transient MCTSNode root;
+    // Tracks which node's live engine state is currently loaded in the shared MCTS simulation game.
+    public transient MCTSNode loadedStateNode;
 
     protected String lastPhase = "";
     protected double totalThinkTime = 0;
