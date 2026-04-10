@@ -206,10 +206,14 @@ public class RemoteModelEvaluator implements AutoCloseable {
         Request req = new Request.Builder().url(evalUrl).post(body).header("Connection", "keep-alive").build();
 
         // 3) Execute & parse
+        long _t0 = System.nanoTime();
         try (Response resp = http.newCall(req).execute()) {
+            PerfStats.httpCallNs.addAndGet(System.nanoTime() - _t0);
+            PerfStats.httpCallCount.incrementAndGet();
             if (!resp.isSuccessful()) throw new RuntimeException("HTTP " + resp.code() + " from model server");
             byte[] bytes = resp.body().bytes();
             MessageUnpacker up = MessagePack.newDefaultUnpacker(bytes);
+
 
             // Server may return:
             //  - ARRAY of MAPs (length B)

@@ -99,6 +99,7 @@ public class MCTSNode2 extends MCTSNode {
     }
 
     public void awaitEvaluation() {
+        long _t0 = System.nanoTime();
         synchronized (this) {
             while (evaluationPending) {
                 try {
@@ -108,5 +109,7 @@ public class MCTSNode2 extends MCTSNode {
                 }
             }
         }
+        PerfStats.nnWaitNs.addAndGet(System.nanoTime() - _t0);
+        PerfStats.nnWaitCount.incrementAndGet();
     }
 }

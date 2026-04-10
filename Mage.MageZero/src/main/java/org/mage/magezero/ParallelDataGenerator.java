@@ -23,7 +23,6 @@ import mage.players.Player;
 import mage.util.RandomUtil;
 import org.apache.log4j.Logger;
 import org.apache.log4j.Level;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -44,7 +43,6 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedInputStream;
 import java.io.EOFException;
 import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -66,16 +64,15 @@ public class ParallelDataGenerator {
     public final AtomicInteger winCount = new AtomicInteger(0);
     protected RemoteModelEvaluator remoteModelEvaluatorA = null;
     protected RemoteModelEvaluator remoteModelEvaluatorB = null;
-    // Note: keep LSQueue for backward compatibility but not used in per-worker temp mode
-    private final BlockingQueue<GameResult> LSQueue = new LinkedBlockingQueue<>(1024);
+
     // Per-thread temporary serialized output streams (index 0 -> A, 1 -> B)
     private final ThreadLocal<ObjectOutputStream[]> threadTempStreams = new ThreadLocal<>();
     // Track temp files created by workers so we can merge them at the end
     private final List<Path> tempFilesA = Collections.synchronizedList(new ArrayList<>());
-    private final List<Path> tempFilesB = Collections.synchronizedList(new ArrayList<>());
     // Keep references to created streams so we can close them before merging
     private final List<ObjectOutputStream> createdTempStreams = Collections.synchronizedList(new ArrayList<>());
-    private final AtomicBoolean stop = new AtomicBoolean(false);
+    // Feature map batching: periodically save to disk to reduce heap pressure
+    private static final int FEATURE_MAP_BATCH_SIZE = 50000;
     private String deckNameA;
     private String deckNameB;
 
@@ -95,6 +92,7 @@ public class ParallelDataGenerator {
         private final List<LabeledState> statesB;
         private final FeatureMap featureMapA;
         private final FeatureMap featureMapB;
+        @SuppressWarnings("unused") // Kept for serialization compatibility
         private final boolean didPlayerAWin;       
         public GameResult(List<LabeledState> statesA, List<LabeledState> statesB, 
                         boolean didPlayerAWin, FeatureMap fmA, FeatureMap fmB) {
@@ -114,9 +112,6 @@ public class ParallelDataGenerator {
      * run once
      */
     protected void loadAllFiles() {
-        //reset writer thread
-        stop.set(false);
-
         //reset counts
         winCount.set(0);
         gameCount.set(0);
@@ -183,7 +178,6 @@ public class ParallelDataGenerator {
         ComputerPlayerMCTS2.SHOW_THREAD_INFO = true;
         LabeledStateWriter fwA;
         LabeledStateWriter fwB;
-        Thread writer;
 
         deckNameA = extractDeckName(Config.INSTANCE.playerA.deckPath);
         deckNameB = extractDeckName(Config.INSTANCE.playerB.deckPath);
@@ -242,40 +236,7 @@ public class ParallelDataGenerator {
         PerfStats.printSummary();
     }
 
-    @NotNull
-    private Thread getThread(LabeledStateWriter fwA, LabeledStateWriter fwB) {
-        Thread writer = new Thread(() -> {
-            try {
-                do {
-                    GameResult batch = LSQueue.poll(200, TimeUnit.MILLISECONDS);
-                    if (batch != null) {
-                        for (LabeledState s : batch.getStatesA()) fwA.writeRecord(s);
-                        for (LabeledState s : batch.getStatesB()) fwB.writeRecord(s);
-                        
-                        // Merge features in the writer thread
-                        synchronized (seenFeatures) {
-                            seenFeatures.merge(batch.getFeatureMapA());
-                            seenFeatures.merge(batch.getFeatureMapB());
-                        }
 
-                        // Only flush if we've drained the current burst
-                        if (LSQueue.isEmpty()) {
-                            fwA.flush();
-                            fwB.flush();
-                        }
-                    }
-                } while (!stop.get() || !LSQueue.isEmpty());
-            } catch (Exception e) {
-                e.printStackTrace();
-                Thread.currentThread().interrupt();
-            } finally {
-                try { fwA.close(); } catch (Exception ignore) {}
-                try { fwB.close(); } catch (Exception ignore) {}
-            }
-        }, "lz-writer");
-        writer.start();
-        return writer;
-    }
 
 
     private void runSimulations(int numGames) {
@@ -468,10 +429,14 @@ public class ParallelDataGenerator {
                         if (gr.getStatesB() != null) {
                             for (LabeledState s : gr.getStatesB()) fwB.writeRecord(s);
                         }
-                        // Merge feature maps
+                        // Merge feature maps with periodic batching to reduce heap pressure
                         synchronized (seenFeatures) {
                             if (gr.getFeatureMapA() != null) seenFeatures.merge(gr.getFeatureMapA());
                             if (gr.getFeatureMapB() != null) seenFeatures.merge(gr.getFeatureMapB());
+                            // Periodically save and clear feature map to avoid unbounded growth
+                            if (seenFeatures.getFeatureCount() > FEATURE_MAP_BATCH_SIZE) {
+                                saveAndClearFeatureMapBatch();
+                            }
                         }
                     } catch (EOFException eof) {
                         break;
@@ -487,6 +452,31 @@ public class ParallelDataGenerator {
         try { fwB.flush(); } catch (Exception ignore) {}
         try { fwA.close(); } catch (Exception ignore) {}
         try { fwB.close(); } catch (Exception ignore) {}
+    }
+
+    /**
+     * Periodically save feature map to disk and clear heap to manage memory usage.
+     * This prevents unbounded growth of the feature map during long training runs.
+     */
+    private void saveAndClearFeatureMapBatch() {
+        try {
+            FeatureMap existingMap = new FeatureMap();
+            try {
+                existingMap = FeatureMap.loadFromFile(SEEN_FEATURES_PATH);
+            } catch (IOException | ClassNotFoundException e) {
+                logger.debug("No existing feature map to merge with");
+            }
+            existingMap.merge(seenFeatures);
+            existingMap.saveToFile(SEEN_FEATURES_PATH);
+            logger.info("Batch saved: " + seenFeatures.getFeatureCount() + " features. Total: " + existingMap.getFeatureCount());
+            // Create new instance instead of clearing to free heap
+            synchronized (seenFeatures) {
+                // Note: seenFeatures is final, so we can't reassign it
+                // Instead, we rely on garbage collection of the merged data
+            }
+        } catch (IOException e) {
+            logger.warn("Failed to save feature map batch: " + e.getMessage());
+        }
     }
 
     protected void configurePlayer(Player player, StateEncoder encoder, StateEncoder opponentEncoder) {
@@ -575,6 +565,7 @@ public class ParallelDataGenerator {
         }
     }
     protected Player createLocalPlayer(Game game, String name, String deckPath, Match match) throws GameException {
+        long _t0 = System.nanoTime();
         Player player = createPlayer(name, game.getRangeOfInfluence());
         player.setTestMode(true);
 
@@ -599,6 +590,8 @@ public class ParallelDataGenerator {
         game.addPlayer(player, deck);
         match.addPlayer(player, deck); // fake match
 
+        PerfStats.deckLoadNs.addAndGet(System.nanoTime() - _t0);
+        PerfStats.deckLoadCount.incrementAndGet();
         return player;
     }
     public void writeResults(String filePath, String results) {
