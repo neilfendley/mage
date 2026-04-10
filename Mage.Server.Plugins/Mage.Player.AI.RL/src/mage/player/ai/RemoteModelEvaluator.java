@@ -46,7 +46,7 @@ public class RemoteModelEvaluator implements AutoCloseable {
 
     // ---------- batching controls ----------
     public static final int batchInterval = 2500;//micro seconds
-    public static final int maxBatchSize = 4;
+    public static final int maxBatchSize = 16;
 
     private final OkHttpClient http;
     private final HttpUrl evalUrl;
