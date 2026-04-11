@@ -175,6 +175,7 @@ public class ParallelDataGenerator {
 
     }
     public void generateData() {
+        Logger.getRootLogger().setLevel(Level.WARN);
         PerfStats.reset();
 
         loadAllFiles();
