@@ -12,7 +12,7 @@ import mage.players.Player;
 import mage.players.PlayerScript;
 import mage.util.RandomUtil;
 import org.apache.log4j.Logger;
-import java.util.Random;
+
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.math3.distribution.GammaDistribution;
@@ -91,11 +91,11 @@ public class MCTSNode {
         this.prefixScript = prefixA;
         this.opponentPrefixScript = prefixB;
     }
-    protected MCTSNode(MCTSNode parent) {
-        this.parent = parent;
-        this.targetPlayer = parent.targetPlayer;
-        this.basePlayer = parent.basePlayer;
-        this.rootGame= parent.rootGame;
+    protected MCTSNode(MCTSNode node_parent) {
+        this.parent = node_parent;
+        this.targetPlayer = node_parent.targetPlayer;
+        this.basePlayer = node_parent.basePlayer;
+        this.rootGame= node_parent.rootGame;
     }
     protected MCTSNode createChild() {
         return new MCTSNode(this);
@@ -230,7 +230,7 @@ public class MCTSNode {
         if(parent == null) {
             baseState = state.copy();
         } else {
-            baseState = parent.state.copy();
+            baseState = rootGame.getState().copy();
         }
         resetRootGame(baseState);
         MCTSPlayer playerA = (MCTSPlayer) rootGame.getPlayer(targetPlayer);
@@ -260,12 +260,15 @@ public class MCTSNode {
 
         actionType = actingPlayer.getNextAction();
         stateVector = actingPlayer.getStateVector();
-        if(parent != null) {
-            if (actingPlayer.getNextAction() == ActionEncoder.ActionType.PRIORITY) {//priority point, use current state value
-                this.state = rootGame.getState();
-            } else {//micro point, use previous state value
-                this.state = parent.state;
-            }
+        // if(parent != null) {
+        //     if (actingPlayer.getNextAction() == ActionEncoder.ActionType.PRIORITY) {//priority point, use current state value
+        //         this.state = rootGame.getState();
+        //     } else {//micro point, use previous state value
+        //         this.state = parent.state;
+        //     }
+        // }
+        if (parent == null) {
+            this.state = rootGame.getState();
         }
     }
     private void setPlayer(Game game) {
