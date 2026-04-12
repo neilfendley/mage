@@ -317,7 +317,9 @@ public class GameState implements Serializable, Copyable<GameState> {
         players.put(player.getId(), player);
         playerList.add(player.getId());
     }
-
+    public Watchers getWatchers() {
+        return watchers;
+    }
     /**
      * AI related: monitor changes in game state (if it changed then AI must re-calculate current actions chain)
      */

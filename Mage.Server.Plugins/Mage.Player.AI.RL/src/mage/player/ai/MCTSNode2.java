@@ -5,7 +5,9 @@ import mage.player.ai.encoder.ActionEncoder;
 import mage.player.ai.score.GameStateEvaluator3;
 import mage.players.PlayerScript;
 
-
+/**
+ * async version of MCTSNode. uses virtual visits like original AlphaZero paper.
+ */
 public class MCTSNode2 extends MCTSNode {
     public volatile boolean evaluationPending = false;
 
@@ -41,10 +43,12 @@ public class MCTSNode2 extends MCTSNode {
             }
             backpropagate(1 + networkScore, 0);
             evaluationPending = false;
+            ((ComputerPlayerMCTS2)basePlayer).pendingNodes.decrementAndGet();
             return;
         }
-
-
+        while (((ComputerPlayerMCTS2)basePlayer).pendingNodes.get() > ComputerPlayerMCTS2.MAX_PENDING) {
+            Thread.yield();
+        }
         long[] nnIndices = new long[stateVector.size()];
         int k = 0;
         for (int i : stateVector)  {
@@ -53,22 +57,28 @@ public class MCTSNode2 extends MCTSNode {
 
         ((ComputerPlayerMCTS2) basePlayer).nn.inferAsync(nnIndices)
                 .thenAccept(out -> {
-                    // This runs on the HTTP executor thread when inference completes
-                    synchronized (this) {
+                    synchronized (basePlayer) {
+                        // This runs on the HTTP executor thread when inference completes
                         switch (actionType) {
                             case PRIORITY:
-                                if (!basePlayer.noPolicyPriority) {
-                                    policy = playerId.equals(targetPlayer) ? out.policy_player :
-                                            (!basePlayer.noPolicyOpponent ? out.policy_opponent : null);
+                                if(basePlayer.noPolicyPriority) break;
+                                if (targetPlayer.equals(playerId)) {
+                                    policy = out.policy_player;
+                                } else {
+                                    if (!basePlayer.noPolicyOpponent) {
+                                        policy = out.policy_opponent;
+                                    }
                                 }
                                 break;
                             case CHOOSE_TARGET:
-                                if (!basePlayer.noPolicyTarget && !basePlayer.noPolicyOpponent) {
+                                if(basePlayer.noPolicyTarget) break;
+                                if (targetPlayer.equals(playerId) || !basePlayer.noPolicyOpponent) {
                                     policy = out.policy_target;
                                 }
                                 break;
                             case CHOOSE_USE:
-                                if (!basePlayer.noPolicyUse) {
+                                if(basePlayer.noPolicyUse) break;
+                                if (targetPlayer.equals(playerId) || !basePlayer.noPolicyOpponent) {
                                     policy = out.policy_binary;
                                 }
                                 break;
@@ -80,20 +90,16 @@ public class MCTSNode2 extends MCTSNode {
                         setPriors();
                         ((ComputerPlayerMCTS2) basePlayer).pendingNodes.decrementAndGet();
                         evaluationPending = false;
-                        this.notifyAll();
                     }
                 })
                 .exceptionally(ex -> {
-                    synchronized (this) {
-                        ex.printStackTrace();
-                        logger.error("REMOTE EVAL FAILURE");
-                        // Still backprop something on failure so tree doesn't get stuck
-                        backpropagate(0, 0);
-                        ((ComputerPlayerMCTS2) basePlayer).pendingNodes.decrementAndGet();
-                        evaluationPending = false;
-                        this.notifyAll();
-                    }
-                    return null;
+                    ex.printStackTrace();
+                    logger.error("REMOTE EVAL FAILURE");
+                    // Still backprop something on failure so tree doesn't get stuck
+                    backpropagate(0, 0);
+                    ((ComputerPlayerMCTS2)basePlayer).pendingNodes.decrementAndGet();
+                    evaluationPending = false;
+                    throw new RuntimeException("REMOTE EVAL FAILURE");
                 });
 
     }

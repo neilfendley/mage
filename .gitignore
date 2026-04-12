@@ -84,3 +84,5 @@ Mage.Tests/testing.bin
 /temp
 FeatureTable.txt
 WinRates.txt
+Mage.Tests/FeatureTable.txt
+Mage.MageZero/FeatureTable.txt

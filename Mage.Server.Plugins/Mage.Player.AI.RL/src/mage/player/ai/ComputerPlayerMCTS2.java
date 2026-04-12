@@ -1,9 +1,14 @@
 package mage.player.ai;
 
 
+import mage.abilities.Ability;
+import mage.abilities.ActivatedAbility;
+import mage.cards.Card;
+import mage.cards.decks.Deck;
 import mage.constants.PhaseStep;
 import mage.constants.RangeOfInfluence;
 import mage.game.Game;
+import mage.game.GameException;
 import mage.player.ai.encoder.ActionEncoder;
 import mage.player.ai.encoder.StateEncoder;
 import mage.player.ai.score.GameStateEvaluator2;
@@ -11,9 +16,11 @@ import mage.player.ai.recorder.PlayerRecorder;
 import mage.player.human.HumanPlayer;
 import mage.players.Player;
 import mage.players.PlayerScript;
+import mage.util.RandomUtil;
 import org.apache.log4j.Logger;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -31,7 +38,10 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
     private static final Logger logger = Logger.getLogger(ComputerPlayerMCTS2.class);
     public AtomicInteger pendingNodes =  new AtomicInteger(0);
 
-
+    /** How many concurrent network eval calls are allowed per tree. keep small to keep MCTS expansion deterministic */
+    public static int MAX_PENDING = 4;
+    /** 0 means use random seed*/
+    public static long DEFAULT_SEED = 2612645407030963366L;
     public static boolean SHOW_THREAD_INFO = true;
     /**if offline mode is on it won't use a neural network and will instead use a heuristic value function and uniform priors.
     is enabled by default if no network is found*/
@@ -39,16 +49,38 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
     public String defaultURL = "http://127.0.0.1:50052";
     public transient RemoteModelEvaluator nn;
     MCTSNode2 root;
+    private boolean allowDuplicates = false;
 
 
 
     public ComputerPlayerMCTS2(String name, RangeOfInfluence range, int skill) {
         super(name, range, skill);
-
+        if(stateEncoder == null){
+            long gameSeed;
+            //declare random seed
+            if(DEFAULT_SEED == 0) {
+                gameSeed = ThreadLocalRandom.current().nextLong();
+            } else {
+                gameSeed = DEFAULT_SEED;
+            }
+            logger.info("Using seed: " + gameSeed);
+            RandomUtil.setSeed(gameSeed);
+        }
     }
 
     protected ComputerPlayerMCTS2(UUID id) {
         super(id);
+        if(stateEncoder == null){
+            long gameSeed;
+            //declare random seed
+            if(DEFAULT_SEED == 0) {
+                gameSeed = ThreadLocalRandom.current().nextLong();
+            } else {
+                gameSeed = DEFAULT_SEED;
+            }
+            logger.info("Using seed: " + gameSeed);
+            RandomUtil.setSeed(gameSeed);
+        }
     }
 
     public ComputerPlayerMCTS2(final ComputerPlayerMCTS2 player) {
@@ -79,6 +111,25 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
             humanEncoder.setOpponent(getId());
             humanOpponent.setRecorder(new PlayerRecorder(humanEncoder));
             logger.info("RL recording enabled for human opponent: " + opponent.getName());
+
+    }
+    public static void printAllActionsFromDeck(Deck deck, ActionEncoder actionEncoder) throws GameException {
+        logger.info("createAllActionsFromDeck; deck size: " + deck.getCards().size());
+        if (deck.getMaindeckCards().size() < 40) {
+            throw new IllegalArgumentException("Couldn't load deck, deck size=" + deck.getMaindeckCards().size());
+        }
+        //pass is always 0
+        List<Card> sortedCards = new ArrayList<>(deck.getCards());
+        sortedCards.sort(Comparator.comparing(Card::getName));
+        for(Card card : sortedCards) {
+            List<Ability> sortedAbilities = new ArrayList<>(card.getAbilities());
+            sortedAbilities.sort(Comparator.comparing(Ability::toString));
+            for(Ability aa : sortedAbilities) {
+                if(aa instanceof ActivatedAbility) {
+                    String name = aa.toString();
+                    logger.info("ACTION: " + name + "maps to " + actionEncoder.getActionIndex(aa, true));
+                }
+            }
         }
     }
     @Override
@@ -115,28 +166,34 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
         long maxEndTime = startTime + 60_000_000_000L;
         int simCount = 0;
         int illegalPurged = 0;
-        int duplicatePurged = 0;
+        int validDuplicatesPurged = 0;
+        int invalidDuplicatesPurged = 0;
 
 
         while (true) {
             if(System.nanoTime() > maxEndTime) {
-                logger.error("force time out after one minute - couldn't find legal move");
+                logger.warn("force time out after one minute - couldn't find legal move");
                 break;
             }
-            if(root.containsLegalNode()) { //can only exit search if the tree contains a priority node (meaning a future legal state)
+            if(root.size() >= MAX_TREE_NODES) {
+                logger.info("too many nodes in tree, ending search");
+                break;
+            }
+            if(root.maxDepth() >= MAX_TREE_DEPTH) {
+                logger.info("tree is too deep, ending search");
+                break;
+            }
+            if(root.containsLegalNode()) { //can only normal exit search if the tree contains a priority node (meaning a future legal state)
                 if (System.nanoTime() > endTime) {
                     logger.debug("timed out, ending search");
                     break;
                 }
-                if (simCount + childVisits >= searchBudget) {
-                    logger.debug("required visits reached, ending search");
-                    break;
-                }
-                if (root.size() >= MAX_TREE_NODES) {
-                    logger.debug("too many nodes in tree, ending search");
+                if (root.getVisits() >= searchBudget) {
+                    logger.info("required visits reached, ending search");
                     break;
                 }
             }
+
             MCTSNode2 current = root;
 
             // selection
@@ -162,17 +219,24 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
                         continue;
                     }
                     //remove child if node is already in the tree
-                    MCTSNode match = current.getPlayerScope().getMatchingStateInScope(current.stateVector, current.getPlayer().getId());
-                    if(match != null) {
-                        duplicatePurged++;
+                    MCTSNode2 match = (MCTSNode2) current.getPlayerScope(current.parent.playerId).getMatchingStateInScope(current.stateVector, current.parent.playerId);
+                    while(match != null && !allowDuplicates) {
                         MCTSNode oldPath = match.getChildOfCommonAncestor(current);
                         MCTSNode newPath = current.getChildOfCommonAncestor(match);
-                        //use common ancestor actions as canonical decider
-                        if(oldPath.getActionIndex(game) <= newPath.getActionIndex(game)) {
+                        //use common ancestor visits as canonical decider
+                        if (newPath.parent == match || newPath.getVisits() <= oldPath.getVisits()) {
+                            //prune new
+                            validDuplicatesPurged++;
                             current.backpropagate(match.getMeanScore());
                             current.getParent().prune(current);
+                            current = null;
+                            break;
                         } else {
+                            //prune old
+                            invalidDuplicatesPurged++;
                             match.getParent().prune(match);
+
+                            // NMF addition
                             current.networkScore = match.networkScore;
                             current.backpropagate(match.getMeanScore()*match.getVisits(), match.getVisits());
                             for(MCTSNode child : match.getChildren()) {
@@ -180,7 +244,11 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
                                 child.setParent(current);
                             }
                             // logger.warn("non canonical ordering found, pruning path with " + match.getVisits() + "visits");
+                            // TODO: NMF: Commented out, check what we added is better
+                            ///match = (MCTSNode2) current.getPlayerScope(current.parent.playerId).getMatchingStateInScope(current.stateVector, current.parent.playerId);
                         }
+                    }
+                    if(current==null) {
                         continue;
                     }
                 }
@@ -198,6 +266,7 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
                 PerfStats.expandNs.addAndGet(System.nanoTime() - _t2);
                 PerfStats.expandCount.incrementAndGet();
                 //temporary result
+                //temporary result (virtual loss)
                 result = -1;
 
             } else {
@@ -220,7 +289,7 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
                     + " seconds - nodes in tree: " + root.size());
             logger.debug("Total: simulated " + totalSimulations + " evaluations in " + totalThinkTime
                     + " seconds - Average: " + (totalThinkTime > 0 ? totalSimulations / totalThinkTime : 0));
-            logger.debug(illegalPurged + " illegals purged, " + duplicatePurged + " duplicates purged");
+            logger.info(illegalPurged + " illegals purged, " + validDuplicatesPurged + " valid duplicates purged, " +  invalidDuplicatesPurged + " invalid duplicates purged.");
         }
     }
     int[] getActionVec(MCTSNode node, Game game) {
@@ -245,6 +314,11 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
         }
         if(actionEncoder == null) {
             actionEncoder = new ActionEncoder();
+            try {
+                printAllActionsFromDeck(getMatchPlayer().getDeck(), actionEncoder);
+            } catch (GameException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         Game sim = createMCTSGame(game.getLastPriority());
@@ -262,22 +336,32 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
             logger.debug("opponent prefix at root: " + opponentPrefixScript);
         }
         if (root != null) {
-            root = (MCTSNode2) root.getMatchingState(newRoot.stateVector);
+            root = (MCTSNode2) root.getMatchingState(newRoot.stateVector, newRoot.stateString);
         }
         if (root == null) {
             root = newRoot;
         }
         root.emancipate();
-        return (MCTSNode2) calculateActions(game, actionType);
+        MCTSNode2 out = (MCTSNode2) calculateActions(game, actionType);
+        //first try regenerating tree (allowing duplicates)
+        if(out == null) {
+            logger.warn("invalid tree - regenerating from scratch");
+            //allowDuplicates = true;
+            root = newRoot;
+            out = (MCTSNode2) calculateActions(game, actionType);
+        }
+        if(out == null) {
+            logger.warn("no best child");
+        }
+        //allowDuplicates = false;
+        return out;
     }
     @Override
     protected MCTSNode calculateActions(Game game, ActionEncoder.ActionType action) {
+
         applyMCTS(game, action);
         MCTSNode best = root.bestChild(game);
-        if(best == null) {
-            logger.error("no best child");
-            return null;
-        }
+
         int[] actionVec = getActionVec(root, game);
 
         if(actionVec != null) stateEncoder.addLabeledState(root.stateVector, actionVec, root.getMeanScore(), action, true);

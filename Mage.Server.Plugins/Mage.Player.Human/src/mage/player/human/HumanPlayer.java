@@ -662,7 +662,10 @@ public class HumanPlayer extends PlayerImpl {
         }
         return fullText;
     }
-
+    @Override
+    public boolean isManualTappingAI() {
+        return isHumanManualTap;
+    }
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
         Set<Integer> preDecisionState = recorder != null ? recorder.capturePreDecisionState(game, playerId) : null;

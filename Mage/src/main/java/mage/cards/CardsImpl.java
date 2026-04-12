@@ -137,7 +137,14 @@ public class CardsImpl extends LinkedHashSet<UUID> implements Cards, Serializabl
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
-
+    @Override
+    public List<Card> getCardsSorted(Game game) {
+        return stream()
+                .map(cardId -> getPermanentOrCard(cardId, game))
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(Card::getName))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
     // cards from battlefield must be as permanent, not card (moveCards uses instanceOf Permanent)
     private static Card getPermanentOrCard(UUID cardId, Game game) {
         Card card = game.getPermanent(cardId);

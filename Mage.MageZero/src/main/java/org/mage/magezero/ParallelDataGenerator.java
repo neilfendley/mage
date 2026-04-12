@@ -78,6 +78,7 @@ public class ParallelDataGenerator {
 
     protected static Map<String, DeckCardLists> loadedDecks = new HashMap<>(); // deck's cache
     protected static Map<String, CardInfo> loadedCardInfo = new HashMap<>(); // db card's cache
+    private static final int maxGameTime = 20;
 
 
 
@@ -256,6 +257,19 @@ public class ParallelDataGenerator {
                         writeTempGameResult(out);
                     } catch (Exception e) {
                         logger.warn("Failed to write temp game result: " + e.getMessage(), e);
+            // NMF: Use completion service to write temp game results async
+            // List<Future<GameResult>> futures = new ArrayList<>();
+            // for (Callable<GameResult> task : tasks) {
+            //     futures.add(executor.submit(task));
+            // }
+            // executor.shutdown();
+
+            // for (Future<GameResult> future : futures) {
+            //     try {
+            //         // future.get() will block until the task is complete.
+            //         GameResult result = future.get(maxGameTime, TimeUnit.MINUTES);
+            //         if (result.didPlayerAWin()) {
+            //             wins++;
                     }
                     return null;
                 });
@@ -265,6 +279,11 @@ public class ParallelDataGenerator {
                 try {
                     completionService.take().get();
                     successfulGames++;
+                // NMF Breaking games across threads
+                // } catch (TimeoutException e) {
+                //     future.cancel(true);
+                //     failedGames++;
+                //     logger.error("Game timed out after " + maxGameTime + " minutes, cancelling.");
                 } catch (ExecutionException e) {
                     failedGames++;
                     logger.error("A game simulation failed and its result will be ignored. Cause: " + e.getCause());
@@ -292,7 +311,7 @@ public class ParallelDataGenerator {
         logger.info(String.format("Total requested: %d games", numGames));
         logger.info(String.format("Successful: %d", successfulGames));
         logger.info(String.format("Failed: %d", failedGames));
-        logger.info(String.format("Player A win rate: %.2f%% (%d/%d)", (100.0 * wins / numGames), wins, numGames));
+        logger.info(String.format("Player A win rate: %.2f%% (%d/%d)", (100.0 * wins / successfulGames), wins, successfulGames));
     }
     private GameResult runSingleGame() throws ExecutionException {
         long seed = ThreadLocalRandom.current().nextLong();
@@ -490,6 +509,7 @@ public class ParallelDataGenerator {
                 mcts2.searchBudget = Config.INSTANCE.playerA.mcts.searchBudget;
                 mcts2.searchTimeout = (double) Config.INSTANCE.playerA.mcts.timeoutMs /1000;
                 mcts2.autoTap = !Config.INSTANCE.playerA.gameplay.manualTap;
+                mcts2.priorTemp = Config.INSTANCE.playerA.priors.priorTemperature;
                 if(remoteModelEvaluatorA == null || Config.INSTANCE.playerA.mcts.offlineMode) mcts2.offlineMode = true;
             } else {
                 mcts2.nn = remoteModelEvaluatorB;
@@ -502,6 +522,7 @@ public class ParallelDataGenerator {
                 mcts2.searchBudget = Config.INSTANCE.playerB.mcts.searchBudget;
                 mcts2.searchTimeout = (double) Config.INSTANCE.playerB.mcts.timeoutMs /1000;
                 mcts2.autoTap = !Config.INSTANCE.playerB.gameplay.manualTap;
+                mcts2.priorTemp = Config.INSTANCE.playerB.priors.priorTemperature;
                 if(remoteModelEvaluatorB == null || Config.INSTANCE.playerB.mcts.offlineMode) mcts2.offlineMode = true;
             }
         } else if (player.getRealPlayer() instanceof ComputerPlayer8) {

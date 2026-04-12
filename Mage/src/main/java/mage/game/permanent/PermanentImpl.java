@@ -298,6 +298,16 @@ public abstract class PermanentImpl extends CardImpl implements Permanent {
         for(String attName : names) {
             sb.append(attName);
         }
+        if(isCreature()) {
+            if(isAttacking()) {
+                sb.append("Attacking");
+                List<String> blocking = game.getCombat().findGroup(getId()).getBlockers().stream().map(id -> game.getEntityName(id, targetPlayer)).collect(Collectors.toList());
+                blocking.sort(String::compareTo);
+                for (String blockingName : blocking) {
+                    sb.append(blockingName).append("Blocking");
+                }
+            }
+        }
         for (Counter counter : getCounters(game).values().stream().sorted(Comparator.comparing(Counter::getName)).collect(Collectors.toList())) {
             sb.append(counter.getName()).append(counter.getCount());
         }

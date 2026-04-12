@@ -39,6 +39,7 @@ public interface Cards extends Set<UUID>, Serializable, Copyable<Cards> {
     void addAllCards(Collection<? extends Card> createCards);
 
     Set<Card> getCards(Game game);
+    List<Card> getCardsSorted(Game game);
 
     /**
      * Warning: this method ignores ObjectSourcePlayer predicates in the filter

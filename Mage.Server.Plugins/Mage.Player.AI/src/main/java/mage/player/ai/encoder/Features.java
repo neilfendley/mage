@@ -8,6 +8,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 
 /**
@@ -32,6 +33,7 @@ public class Features implements Serializable {
     private final Map<String, Long> hashCache = new HashMap<>();
 
     private transient StateEncoder encoder;
+    private HashMap<UUID, String> idMap;
 
     private String featureName;
     private long seed; //namespace hash
@@ -45,6 +47,7 @@ public class Features implements Serializable {
     public Features() {
         subFeatures = new HashMap<>();
         occurrences = new HashMap<>();
+        idMap = new HashMap<>();
         parent = null;
         featureName = "root";
         seed = GLOBAL_SEED;
@@ -53,6 +56,7 @@ public class Features implements Serializable {
     public Features(Features p, String name) {
         this();
         parent = p;
+        idMap = new HashMap<>();
         featureName = name;
         encoder = p.encoder;
         seed = hash64(name, p.seed);
@@ -71,8 +75,6 @@ public class Features implements Serializable {
             f.setEncoder(encoder);
         }
     }
-
-
     /**
      * gets subfeatures at name or creates them if they dont exist
      *
@@ -80,12 +82,14 @@ public class Features implements Serializable {
      * @return subfeature at name (never returns null)
      */
     public Features getSubFeatures(String name) {
-        return getSubFeatures(name, true);
+        return getSubFeatures(name, true, null);
     }
-
     public Features getSubFeatures(String name, boolean passToParent) {
+        return getSubFeatures(name, passToParent, null);
+    }
+    public Features getSubFeatures(String name, boolean passToParent, UUID uuid) {
         //added as normal binary feature
-        addFeature(name);
+        addFeature(name, true, uuid);
 
         int n = occurrences.get(name);
         String key = buildKey(name, '#', n);
@@ -103,16 +107,22 @@ public class Features implements Serializable {
     public void addFeature(String name) {
         addFeature(name, true);
     }
-
     public void addFeature(String name, boolean callParent) {
+        addFeature(name, callParent, null);
+    }
+    public void addFeature(String name, boolean callParent, UUID uuid) {
         //usually add feature to parent
         if (parent != null && callParent && passToParent) {
-            parent.addFeature(name);
+            parent.addFeature(name, true, uuid);
+
         }
         int n = occurrences.getOrDefault(name, 0) + 1;
         occurrences.put(name, n);
-        String key = buildKey(name, '#', n);
-        long hash = hash64Cached(key);
+        String key = (name+"#"+n);
+        if(uuid != null && !idMap.containsKey(uuid)) {
+            idMap.put(uuid, key);
+        }
+        long hash = hash64(key, seed);
         addIndex(hash, key);
     }
 
@@ -138,13 +148,15 @@ public class Features implements Serializable {
     }
 
     public void stateRefresh() {
-        // Clear counts rather than iterating with replaceAll — they get rebuilt from scratch
-        occurrences.clear();
-        for (Features f : subFeatures.values()) {
-            f.stateRefresh();
+        occurrences.replaceAll((k, v) -> 0);
+        idMap.clear();
+        for (String n : subFeatures.keySet()) {
+            subFeatures.get(n).stateRefresh();
         }
     }
-
+    public String getNameFromUUID(UUID uuid) {
+        return idMap.get(uuid);
+    }
     private void addIndex(long h, String key) {
         int idx = indexFor(h);
         encoder.featureVector.add(idx);

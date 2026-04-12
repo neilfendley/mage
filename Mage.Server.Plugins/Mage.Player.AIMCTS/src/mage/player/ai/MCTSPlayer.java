@@ -12,6 +12,7 @@ import mage.player.ai.encoder.StateEncoder;
 import mage.players.Player;
 import mage.players.PlayerScript;
 import mage.target.Target;
+import mage.util.RateLimitedLogger;
 import org.apache.log4j.Logger;
 
 import java.util.*;
@@ -72,7 +73,6 @@ public class MCTSPlayer extends ComputerPlayer {
         choiceOptions.clear();
         numOptionsSize = 0;
         playables.clear();
-        decisionText = "";
     }
 
     @Override
@@ -112,7 +112,7 @@ public class MCTSPlayer extends ComputerPlayer {
             ActivatedAbility ability = (ActivatedAbility) actionScript.prioritySequence.pollFirst().copy();
             boolean success = activateAbility(ability, game);
             if(!success && !game.isPaused()) {//if decision costs need to be resolved let them simulate out
-                logger.warn(game.getTurn().getValue(game.getTurnNum()) + " INVALID SCRIPT AT: " + ability.toString());
+                RateLimitedLogger.warn(game.getTurn().getValue(game.getTurnNum()) + " INVALID SCRIPT AT: " + ability.toString());
                 illegalGameState(game);
                 return false;
             }
@@ -143,7 +143,7 @@ public class MCTSPlayer extends ComputerPlayer {
     //MCTS always uses manual tapping
     @Override
     public boolean playManaHandling (Ability ability, ManaCost unpaid, final Game game) {
-        if(game.isPaused() || game.checkIfGameIsOver()) return false;
+        //if(game.isPaused() || game.checkIfGameIsOver()) return false;
         boolean out;
         if(autoTap) {
             out = super.playManaHandling(ability, unpaid, game);
@@ -151,7 +151,7 @@ public class MCTSPlayer extends ComputerPlayer {
             out = autoPayFromPool(ability, unpaid, game);
         }
         if(!out) {
-            illegalGameState(game);
+            //illegalGameState(game);
             return false;
         }
         return true;
@@ -238,17 +238,17 @@ public class MCTSPlayer extends ComputerPlayer {
         //for choosing colors/types etc
         if (!actionScript.choiceSequence.isEmpty()) {
             String chosen = actionScript.choiceSequence.pollFirst();
-            if(!choice.getChoices().isEmpty()) {
-                choice.setChoice(chosen);
-            } else {
+            if(!choice.getKeyChoices().isEmpty()) {
                 choice.setChoiceByKey(chosen);
+            } else {
+                choice.setChoice(chosen);
             }
             getPlayerHistory().choiceSequence.add(chosen);
             return true;
         }
-        choiceOptions = new HashSet<>(choice.getChoices());
+        choiceOptions = new HashSet<>(choice.getKeyChoices().keySet());
         if(choiceOptions.isEmpty()) {
-            choiceOptions = choice.getKeyChoices().keySet();
+            choiceOptions = choice.getChoices();
         }
         if(choiceOptions.isEmpty()) {
             logger.debug("no choice options - fizzle");
@@ -355,7 +355,7 @@ public class MCTSPlayer extends ComputerPlayer {
     @Override
     public void illegalGameState(Game game) {
         if(game.isPaused()) return;
-        logger.debug("Illegal game state: " + game);
+        // logger.debug("Illegal game state: ");
         scriptFailed = true;
         lastToAct = true;
         game.pause();
