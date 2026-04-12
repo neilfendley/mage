@@ -54,6 +54,7 @@ public class ComputerPlayerMCTS extends ComputerPlayer {
     public static double C_PUCT = 1;
     //adjust based on available RAM and threads running
     public static int MAX_TREE_NODES = 100000;
+    public static boolean verbose = false;
 
     public transient MCTSNode root;
 

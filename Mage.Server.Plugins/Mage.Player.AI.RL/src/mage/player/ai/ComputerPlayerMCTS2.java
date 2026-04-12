@@ -273,7 +273,6 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
     @Override
     protected MCTSNode calculateActions(Game game, ActionEncoder.ActionType action) {
         applyMCTS(game, action);
-
         MCTSNode best = root.bestChild(game);
         if(best == null) {
             logger.error("no best child");

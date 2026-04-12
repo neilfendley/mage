@@ -77,10 +77,10 @@ public class Config {
     }
 
     public static class PriorsConfig {
-        public final boolean priority;
-        public final boolean target;
-        public final boolean binary;
-        public final boolean opponent;
+        public boolean priority;
+        public boolean target;
+        public boolean binary;
+        public boolean opponent;
 
         public PriorsConfig(Map<String, Object> raw) {
             this.priority = (boolean) raw.getOrDefault("priority", false);
@@ -91,7 +91,7 @@ public class Config {
     }
 
     public static class NoiseConfig {
-        public final boolean enabled;
+        public boolean enabled;
 
         public NoiseConfig(Map<String, Object> raw) {
             this.enabled = (boolean) raw.getOrDefault("enabled", false);

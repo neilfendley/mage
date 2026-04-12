@@ -3,6 +3,7 @@ package org.mage.test.AI;
 import org.mage.magezero.Config;
 
 import mage.cards.repository.CardRepository;
+import mage.player.ai.ComputerPlayerMCTS;
 import mage.cards.repository.CardScanner;
 import mage.cards.repository.RepositoryUtil;
 import org.mage.magezero.ParallelDataGenerator;
@@ -41,6 +42,11 @@ public class KrenkoMain {
         private String playerBType = "mcts";
         private String outputDir = "data";
         private int version = 0;
+        private Integer searchBudget = null;
+        private Integer timeoutMs = null;
+        private Boolean priors = null;
+        private Boolean noise = null;
+        private boolean verbose = false;
     }
 
     private static Options parseArgs(String[] args) {
@@ -80,6 +86,21 @@ public class KrenkoMain {
                     break;
                 case "--output-dir":
                     options.outputDir = args[++i];
+                    break;
+                case "--search-budget":
+                    options.searchBudget = Integer.parseInt(args[++i]);
+                    break;
+                case "--timeout-ms":
+                    options.timeoutMs = Integer.parseInt(args[++i]);
+                    break;
+                case "--priors":
+                    options.priors = Boolean.parseBoolean(args[++i]);
+                    break;
+                case "--noise":
+                    options.noise = Boolean.parseBoolean(args[++i]);
+                    break;
+                case "--verbose":
+                    options.verbose = true;
                     break;
                 default:
                     throw new IllegalArgumentException("Unknown argument: " + arg);
@@ -141,6 +162,29 @@ public class KrenkoMain {
                 Config.INSTANCE.training.games = options.gamesPerTest;
                 Config.INSTANCE.training.maxTurns = options.maxTurns;
                 Config.INSTANCE.training.threads = options.threads;
+                if (options.searchBudget != null) {
+                    Config.INSTANCE.playerA.mcts.searchBudget = options.searchBudget;
+                    Config.INSTANCE.playerB.mcts.searchBudget = options.searchBudget;
+                }
+                if (options.timeoutMs != null) {
+                    Config.INSTANCE.playerA.mcts.timeoutMs = options.timeoutMs;
+                    Config.INSTANCE.playerB.mcts.timeoutMs = options.timeoutMs;
+                }
+                if (options.priors != null) {
+                    Config.INSTANCE.playerA.priors.priority = options.priors;
+                    Config.INSTANCE.playerA.priors.target = options.priors;
+                    Config.INSTANCE.playerA.priors.binary = options.priors;
+                    Config.INSTANCE.playerA.priors.opponent = options.priors;
+                    Config.INSTANCE.playerB.priors.priority = options.priors;
+                    Config.INSTANCE.playerB.priors.target = options.priors;
+                    Config.INSTANCE.playerB.priors.binary = options.priors;
+                    Config.INSTANCE.playerB.priors.opponent = options.priors;
+                }
+                if (options.noise != null) {
+                    Config.INSTANCE.playerA.noise.enabled = options.noise;
+                    Config.INSTANCE.playerB.noise.enabled = options.noise;
+                }
+                ComputerPlayerMCTS.verbose = options.verbose;
                 try {
                     long generatorStartTime = System.nanoTime();
                     ParallelDataGenerator generator = new ParallelDataGenerator();

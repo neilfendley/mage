@@ -175,8 +175,7 @@ public class ParallelDataGenerator {
 
     }
     public void generateData() {
-        Logger.getLogger("org.mage.magezero.ParallelDataGenerator").setLevel(Level.ERROR);
-        Logger.getRootLogger().setLevel(Level.ERROR);
+        Logger.getRootLogger().setLevel(Level.WARN);
         PerfStats.reset();
 
         loadAllFiles();
