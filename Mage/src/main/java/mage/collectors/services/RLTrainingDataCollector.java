@@ -102,15 +102,22 @@ public class RLTrainingDataCollector extends EmptyDataCollector {
                     }
                 }
                 String oppDeckName = "Unknown";
-                for (UUID opponentId : game.getOpponents(player.getId())) {
-                    opponent = game.getPlayer(opponentId);
-                    if (opponent != null && opponent.getMatchPlayer() != null && opponent.getMatchPlayer().getDeck() != null) {
-                        oppDeckName = opponent.getMatchPlayer().getDeck().getName();
-                        if (oppDeckName == null || oppDeckName.isEmpty()) {
-                            oppDeckName = "FoundNoName";
+                try {
+                    for (UUID opponentId : game.getOpponents(player.getId())) {
+                        opponent = game.getPlayer(opponentId);
+                        if (opponent != null && opponent.getMatchPlayer() != null && opponent.getMatchPlayer().getDeck() != null) {
+                            oppDeckName = opponent.getMatchPlayer().getDeck().getName();
+                            if (oppDeckName == null || oppDeckName.isEmpty()) {
+                                oppDeckName = "FoundNoName";
+                            }
+                            break;
                         }
-                        break;
                     }
+                } catch (IllegalStateException e) {
+                    // getOpponents -> hasPlayerInRange throws IllegalStateException when the
+                    // game has not been started. Fall through to the "Unknown" labels below.
+                    logger.warn("Failed to look up opponent for " + player.getName()
+                            + "; falling back to 'Unknown' opponent labels", e);
                 }
                 
                 String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());

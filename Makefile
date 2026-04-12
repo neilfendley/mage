@@ -44,12 +44,16 @@ install: clean build
 DECK    ?= decks/IzzetElementals.dck
 OP_DECK ?= decks/MonoRAggro.dck
 
+KRENKO_JAR ?= Mage.Tests/target/mage-tests.jar
+
+.PHONY: build-krenko-jar
+build-krenko-jar:
+	mvn -pl Mage.Tests -am -DskipTests package
+
 .PHONY: run-krenko
-run-krenko:
-	mvn -pl Mage.Tests exec:java \
-		-Dexec.mainClass="org.mage.test.AI.KrenkoMain" \
-		-Dexec.classpathScope=test \
-		-Dexec.args="--player-deck $(DECK) --opponent-deck $(OP_DECK)"
+run-krenko: build-krenko-jar
+	java --enable-native-access=ALL-UNNAMED -jar $(KRENKO_JAR) \
+		--player-deck $(DECK) --opponent-deck $(OP_DECK)
 		
 
 
@@ -63,4 +67,3 @@ run-server:
 run-client:
 	cd Mage.Client && mvn exec:java \
 		-Dexec.mainClass="mage.client.MageFrame"
-

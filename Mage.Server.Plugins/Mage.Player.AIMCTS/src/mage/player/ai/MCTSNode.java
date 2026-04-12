@@ -550,31 +550,42 @@ public class MCTSNode {
         if (children.size() == 1) {
             return children.get(0);
         }
-        StringBuilder sb = new StringBuilder();
-        if(baseGame.getTurnStepType() == null) {
-            sb.append("pre-game");
-        } else {
-            sb.append(baseGame.getTurnStepType().toString());
-        }
-        sb.append(baseGame.getStack().toString());
-        sb.append("pool=").append(myPlayer.getManaPool().getMana());
-        sb.append(" actions: ");
-        for (MCTSNode node: children) {
-            if(node.targetAction != null) {
-                sb.append(String.format("[%s score: %.3f count: %d] ", baseGame.getEntityName(node.targetAction, targetPlayer), node.getMeanScore(), node.getVisits()));
-            } else if(node.choiceAction != null) {
-                sb.append(String.format("[%s score: %.3f count: %d] ", node.choiceAction, node.getMeanScore(), node.getVisits()));
-            } else if(node.useAction != null) {
-                sb.append(String.format("[%s score: %.3f count: %d] ", node.useAction, node.getMeanScore(), node.getVisits()));
-            } else if(node.amountAction != null) {
-                sb.append(String.format("[%s score: %.3f count: %d] ", node.amountAction, node.getMeanScore(), node.getVisits()));
-            } else if(node.priorityAction != null){
-                sb.append(String.format("[%s score: %.3f count: %d] ", node.priorityAction, node.getMeanScore(), node.getVisits()));
-            } else {
-                logger.error("no action in node");
+        if(!children.isEmpty() && ComputerPlayerMCTS.verbose) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("\n  DECISION [");
+            sb.append(actionType != null ? actionType : "?");
+            sb.append("] turn=").append(baseGame.getTurnNum());
+            sb.append(" step=");
+            sb.append(baseGame.getTurnStepType() != null ? baseGame.getTurnStepType() : "pre-game");
+            if(!baseGame.getStack().isEmpty()) {
+                sb.append(" stack=").append(baseGame.getStack());
             }
-        }
-        if(!children.isEmpty() && !myPlayer.allMana) {
+            sb.append(" pool=").append(myPlayer.getManaPool().getMana());
+            sb.append(" value=").append(String.format("%.3f", this.networkScore));
+            sb.append("\n");
+
+            double sqrtN = Math.sqrt(getVisits());
+            children.sort(Comparator.comparingInt(MCTSNode::getVisits).reversed());
+            for (MCTSNode node : children) {
+                String actionName;
+                if (node.targetAction != null) {
+                    actionName = baseGame.getEntityName(node.targetAction, targetPlayer);
+                } else if (node.choiceAction != null) {
+                    actionName = node.choiceAction;
+                } else if (node.useAction != null) {
+                    actionName = node.useAction.toString();
+                } else if (node.amountAction != null) {
+                    actionName = node.amountAction.toString();
+                } else if (node.priorityAction != null) {
+                    actionName = node.priorityAction.toString();
+                } else {
+                    actionName = "???";
+                }
+                double q = node.getVisits() > 0 ? node.getMeanScore() : 0.0;
+                double u = ComputerPlayerMCTS.C_PUCT * node.prior * (sqrtN / (1 + node.getVisits()));
+                sb.append(String.format("    %-60s visits=%-5d Q=%.3f prior=%.3f U=%.3f\n",
+                        actionName, node.getVisits(), q, node.prior, u));
+            }
             logger.info(sb.toString());
         }
         //derive temp from value

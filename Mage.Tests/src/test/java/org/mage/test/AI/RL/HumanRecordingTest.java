@@ -445,18 +445,22 @@ public class HumanRecordingTest {
         int written = human.writeRLData(outputFile.getAbsolutePath(), outputFileb.getAbsolutePath(), true, 0.95);
         assertEquals(2, written, "Should write 2 states");
 
+        // Row format: [action(128), resultLabel, stateScore, isPlayer, actionType]
+        // isPlayer=true states go to playerA file; isPlayer=false states go to playerB file.
         try (IHDF5Reader reader = HDF5Factory.openForReading(outputFile)) {
             float[][] rows = reader.float32().readMatrix("/row");
-            assertEquals(2, rows.length, "Should have 2 rows");
-
-            // Row format: [action(128), resultLabel, stateScore, isPlayer, actionType]
+            assertEquals(1, rows.length, "Player A file should have the single isPlayer=true row");
             assertEquals(0.42f, rows[0][129], 0.01f, "stateScore must be preserved");
             assertEquals(1f, rows[0][130], 0.01f, "isPlayer=true must be 1.0");
             assertEquals(ActionEncoder.ActionType.PRIORITY.ordinal(), (int) rows[0][131]);
+        }
 
-            assertEquals(-0.5f, rows[1][129], 0.01f, "stateScore must be preserved for record 2");
-            assertEquals(0f, rows[1][130], 0.01f, "isPlayer=false must be 0.0");
-            assertEquals(ActionEncoder.ActionType.CHOOSE_USE.ordinal(), (int) rows[1][131]);
+        try (IHDF5Reader reader = HDF5Factory.openForReading(outputFileb)) {
+            float[][] rows = reader.float32().readMatrix("/row");
+            assertEquals(1, rows.length, "Player B file should have the single isPlayer=false row");
+            assertEquals(-0.5f, rows[0][129], 0.01f, "stateScore must be preserved for record 2");
+            assertEquals(0f, rows[0][130], 0.01f, "isPlayer=false must be 0.0");
+            assertEquals(ActionEncoder.ActionType.CHOOSE_USE.ordinal(), (int) rows[0][131]);
         }
     }
 
@@ -591,29 +595,35 @@ public class HumanRecordingTest {
         RLTrainingDataCollector collector = new RLTrainingDataCollector(tempDir.toString());
         collector.onGameEnd(game);
 
-        // Verify a .bin file was created in the output directory
+        // Verify .hdf5 files were created. writeRLData produces a player-A file (isPlayer=true
+        // states) and a player-B file (isPlayer=false states). All 5 states in this test have
+        // isPlayer=true, so the B file is created but empty.
         File[] files = tempDir.toFile().listFiles((dir, name) -> name.endsWith(".hdf5"));
         assertNotNull(files, "Output directory should exist");
-        assertEquals(1, files.length, "Should produce exactly one .hdf5 file");
+        assertEquals(2, files.length, "Should produce player-A and player-B .hdf5 files");
 
-        File outputFile = files[0];
-        assertTrue(outputFile.getName().startsWith("TestHuman_"),
-                "Filename should start with player name");
-        assertTrue(outputFile.length() > 0, "Output file should not be empty");
-
-        // Verify HDF5 content
-        try (IHDF5Reader reader = HDF5Factory.openForReading(outputFile)) {
-            float[][] rows = reader.float32().readMatrix("/row");
-            assertEquals(5, rows.length, "File should contain 5 records");
-            // human.hasWon() is false (game never started), so labels should be negative
-            assertTrue(rows[0][128] < 0, "Result label should be negative when player hasn't won");
+        // Find the player-A file (the one with the 5 records)
+        File playerAFile = null;
+        for (File f : files) {
+            try (IHDF5Reader reader = HDF5Factory.openForReading(f)) {
+                float[][] rows = reader.float32().readMatrix("/row");
+                if (rows.length == 5) {
+                    playerAFile = f;
+                    // human.hasWon() is false (game never started), so labels should be negative
+                    assertTrue(rows[0][128] < 0, "Result label should be negative when player hasn't won");
+                }
+            }
         }
+        assertNotNull(playerAFile, "One of the output files should contain the 5 recorded states");
+        assertTrue(playerAFile.length() > 0, "Output file should not be empty");
 
         // Verify opponent produced no file (no recorder)
         assertNull(opponent.getRecorder());
 
         // Clean up
-        outputFile.delete();
+        for (File f : files) {
+            f.delete();
+        }
         tempDir.toFile().delete();
     }
 
