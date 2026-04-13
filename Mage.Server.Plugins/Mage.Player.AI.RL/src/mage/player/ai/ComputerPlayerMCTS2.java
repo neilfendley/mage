@@ -111,6 +111,7 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
             humanEncoder.setOpponent(getId());
             humanOpponent.setRecorder(new PlayerRecorder(humanEncoder));
             logger.info("RL recording enabled for human opponent: " + opponent.getName());
+        }
 
     }
     public static void printAllActionsFromDeck(Deck deck, ActionEncoder actionEncoder) throws GameException {
