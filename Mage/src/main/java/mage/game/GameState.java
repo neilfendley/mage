@@ -164,26 +164,42 @@ public class GameState implements Serializable, Copyable<GameState> {
         this.isPlaneChase = state.isPlaneChase;
         this.seenPlanes.addAll(state.seenPlanes);
         this.designations.addAll(state.designations);
-        this.helperEmblems = CardUtil.deepCopyObject(state.helperEmblems);
+        this.helperEmblems = state.helperEmblems.stream().map(Emblem::copy).collect(Collectors.toList());
         this.exile = state.exile.copy();
         this.battlefield = state.battlefield.copy();
         this.turnNum = state.turnNum;
         this.stepNum = state.stepNum;
         this.extraTurnId = state.extraTurnId;
         this.effects = state.effects.copy();
-        this.triggered = CardUtil.deepCopyObject(state.triggered);
+        this.triggered = state.triggered.stream().map(t -> (TriggeredAbility) t.copy()).collect(Collectors.toList());
         this.triggers = state.triggers.copy();
         this.delayed = state.delayed.copy();
         this.specialActions = state.specialActions.copy();
         this.combat = state.combat.copy();
         this.turnMods = state.turnMods.copy();
         this.watchers = state.watchers.copy();
-        this.values = CardUtil.deepCopyObject(state.values);
+        this.values = new HashMap<>();
+        for (Map.Entry<String, Object> entry : state.values.entrySet()) {
+            this.values.put(entry.getKey(), CardUtil.deepCopyObject(entry.getValue()));
+        }
         this.zones.putAll(state.zones);
         this.simultaneousEvents.addAll(state.simultaneousEvents);
-        this.cardState = CardUtil.deepCopyObject(state.cardState);
-        this.permanentCostsTags = CardUtil.deepCopyObject(state.permanentCostsTags);
-        this.mageObjectAttribute = CardUtil.deepCopyObject(state.mageObjectAttribute);
+        this.cardState = new HashMap<>();
+        for (Map.Entry<UUID, CardState> entry : state.cardState.entrySet()) {
+            this.cardState.put(entry.getKey(), entry.getValue().copy());
+        }
+        this.permanentCostsTags = new HashMap<>();
+        for (Map.Entry<MageObjectReference, Map<String, Object>> entry : state.permanentCostsTags.entrySet()) {
+            Map<String, Object> newMap = new HashMap<>();
+            for (Map.Entry<String, Object> innerEntry : entry.getValue().entrySet()) {
+                newMap.put(innerEntry.getKey(), CardUtil.deepCopyObject(innerEntry.getValue()));
+            }
+            this.permanentCostsTags.put(entry.getKey(), newMap);
+        }
+        this.mageObjectAttribute = new HashMap<>();
+        for (Map.Entry<UUID, MageObjectAttribute> entry : state.mageObjectAttribute.entrySet()) {
+            this.mageObjectAttribute.put(entry.getKey(), entry.getValue().copy());
+        }
         this.zoneChangeCounter.putAll(state.zoneChangeCounter);
         this.copiedCards.putAll(state.copiedCards);
         this.permanentOrderNumber = state.permanentOrderNumber;
@@ -692,9 +708,9 @@ public class GameState implements Serializable, Copyable<GameState> {
         for (Player player : players.values()) {
             player.reset();
         }
+        this.reset();
         battlefield.reset(game);
         combat.reset(game);
-        this.reset();
         effects.apply(game);
         combat.checkForRemoveFromCombat(game);
     }
@@ -1178,6 +1194,13 @@ public class GameState implements Serializable, Copyable<GameState> {
 
     private void addCard(Card card, Zone zone) {
         setZone(card.getId(), zone);
+
+        // Actually put the card in the exile zone if it's exiled;
+        // see https://github.com/magefree/mage/issues/14005 for why this is necessary.
+        // This is only called from addCard(card) which uses Zone.OUTSIDE, and in the copy spell code.
+        if (zone != null && zone.match(Zone.EXILED)) {
+            getExile().add(card);
+        }
 
         // add card specific abilities to game
         for (Ability ability : card.getInitAbilities()) {

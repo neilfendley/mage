@@ -16,7 +16,6 @@ import mage.player.ai.encoder.FeatureMap;
 import mage.player.ai.encoder.Features;
 import mage.player.ai.encoder.LabeledState;
 import mage.player.ai.encoder.StateEncoder;
-import mage.player.ai.RemoteModelEvaluator;
 import mage.players.Player;
 import mage.util.RandomUtil;
 import org.apache.log4j.Logger;
@@ -153,12 +152,12 @@ public class ParallelDataGenerator {
         deckNameA = extractDeckName(Config.INSTANCE.playerA.deckPath);
         deckNameB = extractDeckName(Config.INSTANCE.playerB.deckPath);
 
-        String fileA = deckNameA + "_vs_" + deckNameB + ".hdf5";
-        String fileB = deckNameB + "_vs_" + deckNameA + ".hdf5";
+        // String fileA = deckNameA + "_vs_" + deckNameB + ".hdf5";
+        // String fileB = deckNameB + "_vs_" + deckNameA + ".hdf5";
 
         try {
-            fwA = new LabeledStateWriter(Config.INSTANCE.playerA.outputDir + "/" + fileA);
-            fwB = new LabeledStateWriter(Config.INSTANCE.playerB.outputDir + "/" + fileB);
+            fwA = new LabeledStateWriter(Config.INSTANCE.playerA.outputFile);
+            fwB = new LabeledStateWriter(Config.INSTANCE.playerB.outputFile);
             writer = getThread(fwA, fwB);
         } catch (IOException e) {
             throw new RuntimeException(e);

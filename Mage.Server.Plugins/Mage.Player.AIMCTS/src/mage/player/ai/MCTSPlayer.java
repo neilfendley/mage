@@ -112,7 +112,7 @@ public class MCTSPlayer extends ComputerPlayer {
             ActivatedAbility ability = (ActivatedAbility) actionScript.prioritySequence.pollFirst().copy();
             boolean success = activateAbility(ability, game);
             if(!success && !game.isPaused()) {//if decision costs need to be resolved let them simulate out
-                RateLimitedLogger.warn(game.getTurn().getValue(game.getTurnNum()) + " INVALID SCRIPT AT: " + ability.toString());
+                // RateLimitedLogger.warn(game.getTurn().getValue(game.getTurnNum()) + " INVALID SCRIPT AT: " + ability.toString());
                 illegalGameState(game);
                 return false;
             }
@@ -322,8 +322,18 @@ public class MCTSPlayer extends ComputerPlayer {
                 .filter(mode -> !modes.getSelectedModes().contains(mode.getId()))
                 .filter(mode -> mode.getTargets().canChoose(source.getControllerId(), source, game)).collect(Collectors.toList());
         if(modes.getMinModes() == 0) modeOptions.add(null);
-        int selected = makeChoiceAmount(0, modeOptions.size()-1, game, source, false);
-        return modeOptions.get(selected);
+        if(modeOptions.isEmpty()) {
+            return null;
+        }
+        Mode selection;
+        try {
+            int selected = makeChoiceAmount(0, modeOptions.size()-1, game, source, false);
+            selection = modeOptions.get(selected);
+        } catch (IndexOutOfBoundsException e) {
+            logger.error("Mode Select Failed: " + e.getMessage(), e);
+            selection = null;
+        }
+        return selection;
     }
     @Override
     protected List<ActivatedAbility> getPlayableAbilities(Game originalGame) {
