@@ -199,6 +199,11 @@ public class ComputerPlayerMCTS2 extends ComputerPlayerMCTS {
                 current.validateState();//can become terminal here
 
                 if(!current.isTerminal()) {
+                    if (current.isReplayFailed()) {
+                        illegalPurged++;
+                        current.getParent().prune(current);
+                        continue;
+                    }
                     //remove child if failed script
                     if (current.getPlayer().scriptFailed) {
                         illegalPurged++;

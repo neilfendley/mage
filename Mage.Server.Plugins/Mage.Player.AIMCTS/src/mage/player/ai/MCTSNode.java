@@ -66,6 +66,7 @@ public class MCTSNode {
     private boolean terminal = false;
     private boolean winner;
     private boolean isRandomTransition = false;
+    private boolean replayFailed = false;
     Set<Integer> stateVector; //encoder derived state vector (used for ML and validation)
     String stateString;
     ActionEncoder.ActionType actionType;
@@ -236,10 +237,28 @@ public class MCTSNode {
      * central engine call of MCTS system. uses XMage to validate the game state at this node and populates necessary fields
      */
     public void validateState() {
+        replayFailed = false;
         PlayerScript myScript = new PlayerScript();
         PlayerScript opponentScript = new PlayerScript();
         populateActionScripts(myScript, opponentScript);
-        GameState baseState = getReplayBaseStateCopy();
+        GameState baseState;
+        try {
+            baseState = getReplayBaseStateCopy();
+        } catch (IllegalStateException e) {
+            logger.warn(String.format(
+                    "Skipping node with missing replay checkpoint: depth=%d, playerId=%s, actionType=%s, localAction=%s, parentActionType=%s, parentAction=%s, ancestorCheckpointDepth=%s, path=%s",
+                    depth,
+                    playerId,
+                    actionType,
+                    describeLocalAction(),
+                    parent == null ? "null" : parent.actionType,
+                    parent == null ? "null" : parent.describeLocalAction(),
+                    getNearestCheckpointDepth(),
+                    describeActionPath(8)
+            ), e);
+            replayFailed = true;
+            return;
+        }
         resetRootGame(baseState);
         MCTSPlayer playerA = (MCTSPlayer) rootGame.getPlayer(targetPlayer);
         MCTSPlayer playerB =  (MCTSPlayer) rootGame.getOpponent(targetPlayer);
@@ -286,6 +305,51 @@ public class MCTSNode {
             current = current.parent;
         }
         throw new IllegalStateException("No replay checkpoint found for node");
+    }
+    private String describeLocalAction() {
+        if (priorityAction != null) {
+            return "PRIORITY:" + priorityAction;
+        }
+        if (targetAction != null) {
+            return "TARGET:" + targetAction;
+        }
+        if (choiceAction != null) {
+            return "CHOICE:" + choiceAction;
+        }
+        if (useAction != null) {
+            return "USE:" + useAction;
+        }
+        if (amountAction != null) {
+            return "NUM:" + amountAction;
+        }
+        return parent == null ? "ROOT" : "NONE";
+    }
+    private String getNearestCheckpointDepth() {
+        MCTSNode current = this;
+        while (current != null) {
+            if (current.checkpointState != null) {
+                return Integer.toString(current.depth);
+            }
+            current = current.parent;
+        }
+        return "none";
+    }
+    private String describeActionPath(int maxSteps) {
+        ArrayDeque<String> path = new ArrayDeque<>();
+        MCTSNode current = this;
+        int steps = 0;
+        while (current != null && steps < maxSteps) {
+            path.addFirst(current.describeLocalAction());
+            current = current.parent;
+            steps++;
+        }
+        if (current != null) {
+            path.addFirst("...");
+        }
+        return String.join(" -> ", path);
+    }
+    public boolean isReplayFailed() {
+        return replayFailed;
     }
     private void setPlayer(Game game) {
         for (Player p : game.getPlayers().values()) {
