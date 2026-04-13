@@ -69,7 +69,7 @@ public class MCTSNode {
     Set<Integer> stateVector; //encoder derived state vector (used for ML and validation)
     String stateString;
     ActionEncoder.ActionType actionType;
-    private GameState state; //the saved logical game state of this node. Should always be a stable priority window
+    private GameState checkpointState; //saved stable replay checkpoint; only stored on root and priority nodes
     //prefix scripts represent the sequence of actions that need to be taken since the last priority to represent this microstate
     private PlayerScript prefixScript = new PlayerScript();
     private PlayerScript opponentPrefixScript = new PlayerScript();
@@ -83,7 +83,7 @@ public class MCTSNode {
      */
     public MCTSNode(ComputerPlayerMCTS targetPlayer, Game game, ActionEncoder.ActionType actionType, PlayerScript prefixA, PlayerScript prefixB) {
         this.rootGame = game;
-        this.state = game.getState().copy();
+        this.checkpointState = game.getState().copy();
         this.basePlayer = targetPlayer;
         this.targetPlayer = targetPlayer.getId();
         this.terminal = game.checkIfGameIsOver();
@@ -239,12 +239,7 @@ public class MCTSNode {
         PlayerScript myScript = new PlayerScript();
         PlayerScript opponentScript = new PlayerScript();
         populateActionScripts(myScript, opponentScript);
-        GameState baseState;
-        if(parent == null) {
-            baseState = state.copy();
-        } else {
-            baseState = parent.state.copy();
-        }
+        GameState baseState = getReplayBaseStateCopy();
         resetRootGame(baseState);
         MCTSPlayer playerA = (MCTSPlayer) rootGame.getPlayer(targetPlayer);
         MCTSPlayer playerB =  (MCTSPlayer) rootGame.getOpponent(targetPlayer);
@@ -275,12 +270,22 @@ public class MCTSNode {
         stateVector = actingPlayer.getStateVector();
         stateString = rootGame.getState().getValue(rootGame, targetPlayer);
         if(parent != null) {
-            if (actingPlayer.getNextAction() == ActionEncoder.ActionType.PRIORITY) {//priority point, use current state value
-                this.state = rootGame.getState();
-            } else {//micro point, use previous state value
-                this.state = parent.state;
+            if (actingPlayer.getNextAction() == ActionEncoder.ActionType.PRIORITY) {//priority point, store a new checkpoint
+                this.checkpointState = rootGame.getState();
+            } else {//micro point, replay from nearest ancestor checkpoint instead of retaining state here
+                this.checkpointState = null;
             }
         }
+    }
+    private GameState getReplayBaseStateCopy() {
+        MCTSNode current = this;
+        while (current != null) {
+            if (current.checkpointState != null) {
+                return current.checkpointState.copy();
+            }
+            current = current.parent;
+        }
+        throw new IllegalStateException("No replay checkpoint found for node");
     }
     private void setPlayer(Game game) {
         for (Player p : game.getPlayers().values()) {
