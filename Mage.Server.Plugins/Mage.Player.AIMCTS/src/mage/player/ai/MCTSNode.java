@@ -745,6 +745,24 @@ public class MCTSNode {
 
     public void emancipate() {
         if (parent != null) {
+            if (this.checkpointState == null) {
+                MCTSNode current = parent;
+                while (current != null && current.checkpointState == null) {
+                    current = current.parent;
+                }
+                if (current != null) {
+                    this.checkpointState = current.checkpointState;
+                } else {
+                    logger.warn(String.format(
+                            "Emancipating node without an ancestor replay checkpoint: depth=%d, playerId=%s, actionType=%s, localAction=%s, path=%s",
+                            depth,
+                            playerId,
+                            actionType,
+                            describeLocalAction(),
+                            describeActionPath(8)
+                    ));
+                }
+            }
             this.parent.children.remove(this);
             this.parent = null;
         }
