@@ -1,0 +1,33 @@
+1 [TDM:138] Craterhoof Behemoth
+2 [DFT:270] Willowrush Verge
+1 [TMT:257] Forest
+2 [BLB:305] Mockingbird
+2 [MKM:151] Archdruid's Charm
+4 [FIN:289] Starting Town
+2 [BLB:181] Keen-Eyed Curator
+3 [ECL:268] Temple Garden
+2 [EOE:34] Seam Rip
+4 [FDN:227] Llanowar Elves
+4 [TLA:167] Badgermole Cub
+2 [DFT:191] Brightglass Gearhulk
+4 [EOE:186] Gene Pollinator
+4 [EOE:251] Breeding Pool
+4 [TDM:150] Nature's Rhythm
+1 [EOE:199] Meltstrider's Resolve
+4 [SPM:180] Multiversal Passage
+4 [DSK:261] Hushwood Verge
+4 [SPM:148] Spider Manifestation
+2 [EOE:201] Ouroboroid
+4 [EOE:305] Quantum Riddler
+SB: 1 [TDM:161] Surrak, Elusive Hunter
+SB: 1 [LCI:14] Get Lost
+SB: 1 [EOE:34] Seam Rip
+SB: 1 [BLB:181] Keen-Eyed Curator
+SB: 2 [ECL:287] Oko, Lorwyn Liege
+SB: 2 [EOE:199] Meltstrider's Resolve
+SB: 2 [TDM:22] Sage of the Skies
+SB: 2 [SPM:254] Spider-Sense
+SB: 2 [FDN:680] Soul-Guide Lantern
+SB: 1 [BLB:241] Ygra, Eater of All
+LAYOUT MAIN:(1,1)(NONE,false,6)|([TDM:138],[DFT:270],[DFT:270],[TMT:257],[BLB:305],[BLB:305],[MKM:151],[MKM:151],[FIN:289],[FIN:289],[FIN:289],[FIN:289],[BLB:181],[BLB:181],[ECL:268],[ECL:268],[ECL:268],[EOE:34],[EOE:34],[FDN:227],[FDN:227],[FDN:227],[FDN:227],[TLA:167],[TLA:167],[TLA:167],[TLA:167],[DFT:191],[DFT:191],[EOE:186],[EOE:186],[EOE:186],[EOE:186],[EOE:251],[EOE:251],[EOE:251],[EOE:251],[TDM:150],[TDM:150],[TDM:150],[TDM:150],[EOE:199],[SPM:180],[SPM:180],[SPM:180],[SPM:180],[DSK:261],[DSK:261],[DSK:261],[DSK:261],[SPM:148],[SPM:148],[SPM:148],[SPM:148],[EOE:201],[EOE:201],[EOE:305],[EOE:305],[EOE:305],[EOE:305])
+LAYOUT SIDEBOARD:(1,1)(NONE,false,50)|([TDM:161],[LCI:14],[EOE:34],[BLB:181],[ECL:287],[ECL:287],[EOE:199],[EOE:199],[TDM:22],[TDM:22],[SPM:254],[SPM:254],[FDN:680],[FDN:680],[BLB:241])

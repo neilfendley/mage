@@ -1,0 +1,38 @@
+1 [TDM:252] Cori Mountain Monastery
+1 [MKM:260] Elegant Parlor
+2 [TDM:261] Mistrise Village
+2 [MKM:269] Thundering Falls
+1 [LCI:280] Restless Anchorage
+2 [OTJ:323] Three Steps Ahead
+1 [TLA:320] Wan Shi Tong, Librarian
+4 [EOE:325] Consult the Star Charts
+4 [DSK:259] Floodfarm Verge
+2 [EOE:34] Seam Rip
+3 [ECL:265] Hallowed Fountain
+2 [TDM:223] Shiko, Paragon of the Way
+4 [LCI:14] Get Lost
+3 [TDM:196] Jeskai Revelation
+1 [TMT:254] Island
+1 [TDM:51] Marang River Regent
+4 [MKM:221] No More Lies
+2 [FDN:140] Day of Judgment
+4 [MKM:218] Lightning Helix
+2 [MKM:264] Meticulous Archive
+3 [EOE:256] Sacred Foundry
+3 [DFT:67] Stock Up
+2 [DFT:260] Riverpyre Verge
+1 [TMT:253] Plains
+1 [ECL:267] Steam Vents
+2 [DFT:264] Sunbillow Verge
+1 [FIN:136] Fire Magic
+1 [FIN:328] Ultima
+SB: 1 [FIN:328] Ultima
+SB: 1 [BIG:34] Rest in Peace
+SB: 2 [BIG:27] Torpor Orb
+SB: 2 [LCI:335] Tishana's Tidebinder
+SB: 3 [LCI:20] Kutzil's Flanker
+SB: 2 [FDN:137] Authority of the Consuls
+SB: 1 [FIN:136] Fire Magic
+SB: 3 [TDM:33] Voice of Victory
+LAYOUT MAIN:(1,1)(NONE,false,50)|([TDM:252],[MKM:260],[TDM:261],[TDM:261],[MKM:269],[MKM:269],[LCI:280],[OTJ:323],[OTJ:323],[TLA:320],[EOE:325],[EOE:325],[EOE:325],[EOE:325],[DSK:259],[DSK:259],[DSK:259],[DSK:259],[EOE:34],[EOE:34],[ECL:265],[ECL:265],[ECL:265],[TDM:223],[TDM:223],[LCI:14],[LCI:14],[LCI:14],[LCI:14],[TDM:196],[TDM:196],[TDM:196],[TMT:254],[TDM:51],[MKM:221],[MKM:221],[MKM:221],[MKM:221],[FDN:140],[FDN:140],[MKM:218],[MKM:218],[MKM:218],[MKM:218],[MKM:264],[MKM:264],[EOE:256],[EOE:256],[EOE:256],[DFT:67],[DFT:67],[DFT:67],[DFT:260],[DFT:260],[TMT:253],[ECL:267],[DFT:264],[DFT:264],[FIN:136],[FIN:328])
+LAYOUT SIDEBOARD:(1,1)(NONE,false,50)|([FIN:328],[BIG:34],[BIG:27],[BIG:27],[LCI:335],[LCI:335],[LCI:20],[LCI:20],[LCI:20],[FDN:137],[FDN:137],[FIN:136],[TDM:33],[TDM:33],[TDM:33])

@@ -1,0 +1,35 @@
+3 [TMT:193] Swamp
+4 [DSK:59] Floodpits Drowner
+4 [DSK:220] Kaito, Bane of Nightmares
+1 [TLA:320] Wan Shi Tong, Librarian
+1 [OTJ:61] Phantom Interference
+2 [FIN:380] Cecil, Dark Knight
+2 [LCI:282] Restless Reef
+1 [BLB:253] Fountainport
+4 [TMT:192] Island
+4 [SPM:180] Multiversal Passage
+3 [DSK:371] Enduring Curiosity
+2 [LCI:91] Bitter Triumph
+2 [OTJ:106] Shoot the Sheriff
+3 [ECL:116] Requiting Hex
+4 [LCI:405] Spyglass Siren
+3 [LCI:335] Tishana's Tidebinder
+4 [EOE:261] Watery Grave
+2 [FDN:133] Soulstone Sanctuary
+2 [EOE:305] Quantum Riddler
+4 [LCI:102] Deep-Cavern Bat
+4 [DSK:260] Gloomlake Verge
+1 [TLA:103] Heartless Act
+SB: 1 [TDM:422] Strategic Betrayal
+SB: 1 [FDN:153] Essence Scatter
+SB: 1 [ECL:116] Requiting Hex
+SB: 1 [DFT:92] Intimidation Tactics
+SB: 2 [DSK:248] Ghost Vacuum
+SB: 1 [TLA:319] The Unagi of Kyoshi Island
+SB: 2 [FDN:606] Duress
+SB: 2 [EOE:394] Annul
+SB: 2 [TLA:373] Day of Black Sun
+SB: 1 [FDN:680] Soul-Guide Lantern
+SB: 1 [TMT:47] Negate
+LAYOUT MAIN:(1,1)(NONE,false,50)|([TMT:193],[TMT:193],[TMT:193],[DSK:59],[DSK:59],[DSK:59],[DSK:59],[DSK:220],[DSK:220],[DSK:220],[DSK:220],[TLA:320],[OTJ:61],[FIN:380],[FIN:380],[LCI:282],[LCI:282],[BLB:253],[TMT:192],[TMT:192],[TMT:192],[TMT:192],[SPM:180],[SPM:180],[SPM:180],[SPM:180],[DSK:371],[DSK:371],[DSK:371],[LCI:91],[LCI:91],[OTJ:106],[OTJ:106],[ECL:116],[ECL:116],[ECL:116],[LCI:405],[LCI:405],[LCI:405],[LCI:405],[LCI:335],[LCI:335],[LCI:335],[EOE:261],[EOE:261],[EOE:261],[EOE:261],[FDN:133],[FDN:133],[EOE:305],[EOE:305],[LCI:102],[LCI:102],[LCI:102],[LCI:102],[DSK:260],[DSK:260],[DSK:260],[DSK:260],[TLA:103])
+LAYOUT SIDEBOARD:(1,1)(NONE,false,50)|([TDM:422],[FDN:153],[ECL:116],[DFT:92],[DSK:248],[DSK:248],[TLA:319],[FDN:606],[FDN:606],[EOE:394],[EOE:394],[TLA:373],[TLA:373],[FDN:680],[TMT:47])

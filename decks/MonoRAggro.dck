@@ -1,0 +1,23 @@
+2 [ECL:154] Sear
+4 [DSK:153] Razorkin Needlehead
+2 [SPM:88] Shock
+4 [DFT:115] Burnout Bashtronaut
+4 [FDN:192] Burst Lightning
+4 [ECL:145] Hexing Squelcher
+20 [TMT:256] Mountain
+3 [LCI:158] Ojer Axonil, Deepest Might
+4 [BLB:140] Hired Claw
+4 [FDN:133] Soulstone Sanctuary
+2 [TDM:127] Tersa Lightshatter
+1 [BLB:155] Sunspine Lynx
+4 [EOE:148] Nova Hellkite
+2 [TLA:146] Lightning Strike
+SB: 2 [ECL:154] Sear
+SB: 4 [OTJ:134] Magebane Lizard
+SB: 1 [TLA:145] The Legend of Roku
+SB: 1 [EOE:130] Cut Propulsion
+SB: 3 [FDN:680] Soul-Guide Lantern
+SB: 1 [SPM:88] Shock
+SB: 3 [BLB:155] Sunspine Lynx
+LAYOUT MAIN:(1,1)(NONE,false,50)|([ECL:154],[ECL:154],[DSK:153],[DSK:153],[DSK:153],[DSK:153],[SPM:88],[SPM:88],[DFT:115],[DFT:115],[DFT:115],[DFT:115],[FDN:192],[FDN:192],[FDN:192],[FDN:192],[ECL:145],[ECL:145],[ECL:145],[ECL:145],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[TMT:256],[LCI:158],[LCI:158],[LCI:158],[BLB:140],[BLB:140],[BLB:140],[BLB:140],[FDN:133],[FDN:133],[FDN:133],[FDN:133],[TDM:127],[TDM:127],[BLB:155],[EOE:148],[EOE:148],[EOE:148],[EOE:148],[TLA:146],[TLA:146])
+LAYOUT SIDEBOARD:(1,1)(NONE,false,50)|([ECL:154],[ECL:154],[OTJ:134],[OTJ:134],[OTJ:134],[OTJ:134],[TLA:145],[EOE:130],[FDN:680],[FDN:680],[FDN:680],[SPM:88],[BLB:155],[BLB:155],[BLB:155])
