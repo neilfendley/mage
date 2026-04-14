@@ -130,7 +130,7 @@ public class HumanRecordingTest {
 
     private Game createTestGame(mage.players.Player playerA, mage.players.Player playerB) throws Exception {
         MatchOptions matchOptions = new MatchOptions("test", "test", false);
-        Match match = new mage.game.match.TwoPlayerMatch(matchOptions);
+        Match match = new mage.game.TwoPlayerMatch(matchOptions);
         Game game = new TwoPlayerDuel(
                 MultiplayerAttackOption.LEFT,
                 RangeOfInfluence.ONE,
