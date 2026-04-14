@@ -31,3 +31,14 @@ package:
 .PHONY: install
 install: clean build package
 
+
+.PHONY: run-server
+run-server:
+	cd Mage.Server && mvn exec:java \
+		-Dexec.mainClass="mage.server.Main" \
+		-Dxmage.dataCollectors.rlTrainingData=true
+
+.PHONY: run-client
+run-client:
+	cd Mage.Client && mvn exec:java \
+		-Dexec.mainClass="mage.client.MageFrame"
