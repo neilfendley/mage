@@ -227,7 +227,9 @@ public class StateEncoder {
             }
         }
         //paired
-        Card pairedCard = (Card) p.getPairedCard();
+        // NMF TODO: Does get secondCard Face get all the features we need
+        // was "getPairedCard" in older versions
+        Card pairedCard = (Card) p.getSecondCardFace();
         if(pairedCard != null) {
             Features pairedFeatures = f.getSubFeatures("paired", false);
             processCard(pairedCard, game, pairedFeatures);
