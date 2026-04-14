@@ -278,6 +278,13 @@ public interface Player extends MageItem, Copyable<Player> {
 
     boolean hasWon();
 
+    default GameRecorder getRecorder() {
+        return null;
+    }
+
+    default void setRecorder(GameRecorder recorder) {
+    }
+
     boolean hasQuit();
 
     void quit(Game game);
