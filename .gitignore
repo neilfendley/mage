@@ -79,3 +79,7 @@ Mage.Tests/testing.bin
 /plugins/images
 Mage.Tests/FeatureTable.txt
 Mage.MageZero/FeatureTable.txt
+
+# build targets
+/deploy
+/temp
