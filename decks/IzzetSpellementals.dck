@@ -1,5 +1,5 @@
 4 [ECL:309] Sunderflock
-6 [TMT:192] Island
+6 [TMT:254] Island
 4 [BLB:48] Eddymurk Crab
 4 [FDN:512] Opt
 4 [FDN:192] Burst Lightning
@@ -8,12 +8,12 @@
 2 [SPM:180] Multiversal Passage
 1 [ECL:154] Sear
 1 [DFT:64] Spell Pierce
-3 [ECL:71] Spell Snare
+3 [DIS:33] Spell Snare
 4 [WOE:136] Hearth Elemental
 3 [TLA:205] Abandon Attachments
 4 [DFT:260] Riverpyre Verge
 1 [SPM:254] Spider-Sense
-4 [ECL:348b] Steam Vents
+4 [ECL:267] Steam Vents
 4 [OTJ:270] Spirebluff Canal
 2 [TDM:188] Glacial Dragonhunt
 4 [WOE:376] Sleight of Hand
@@ -25,5 +25,5 @@ SB: 2 [DSK:149] Pyroclasm
 SB: 1 [BLB:230] Ral, Crackling Wit
 SB: 2 [FDN:680] Soul-Guide Lantern
 SB: 2 [BLB:155] Sunspine Lynx
-SB: 1 [TMT:47] Negate
+SB: 1 [FDN:710] Negate
 SB: 1 [DFT:192] Broadside Barrage
