@@ -48,6 +48,12 @@ public class HumanRecordingTest {
     }
 
     @Test
+    void testImportDeckFromFileBackfillsDeckNameFromPath() {
+        DeckCardLists deck = DeckImporter.importDeckFromFile(TEST_DECK, true);
+        assertEquals("Standard-MonoR", deck.getName(), "Importer should derive the deck name from the file path");
+    }
+
+    @Test
     void testCollectorAttachesRecorderForHumanVsBot() throws Exception {
         HumanPlayer human = new HumanPlayer("Human", RangeOfInfluence.ONE, 1);
         ComputerPlayer7 bot = new ComputerPlayer7("Bot", RangeOfInfluence.ONE, 6);
