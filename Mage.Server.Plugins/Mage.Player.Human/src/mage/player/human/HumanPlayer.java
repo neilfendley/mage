@@ -26,6 +26,7 @@ import mage.filter.common.FilterCreatureForCombatBlock;
 import mage.filter.predicate.permanent.ControllerIdPredicate;
 import mage.game.Game;
 import mage.game.GameImpl;
+import mage.game.GameRecorder;
 import mage.game.combat.CombatGroup;
 import mage.game.draft.Draft;
 import mage.game.events.DeclareAttackerEvent;
@@ -122,6 +123,9 @@ public class HumanPlayer extends PlayerImpl {
 
     protected boolean holdingPriority;
 
+    private transient GameRecorder recorder;
+    private transient int rlCheckpointSize = -1;
+
     protected ConcurrentLinkedQueue<PlayerResponse> actionQueue = new ConcurrentLinkedQueue<>();
     protected ConcurrentLinkedQueue<PlayerResponse> actionQueueSaved = new ConcurrentLinkedQueue<>();
     protected int actionIterations = 0;
@@ -134,6 +138,16 @@ public class HumanPlayer extends PlayerImpl {
         this.human = true;
         this.response = new PlayerResponse();
         initReplacementDialog();
+    }
+
+    @Override
+    public void setRecorder(GameRecorder recorder) {
+        this.recorder = recorder;
+    }
+
+    @Override
+    public GameRecorder getRecorder() {
+        return recorder;
     }
 
     private void initReplacementDialog() {
@@ -160,6 +174,10 @@ public class HumanPlayer extends PlayerImpl {
     public HumanPlayer(final HumanPlayer player) {
         super(player);
         this.response = player.response;
+        this.recorder = player.recorder;
+        if (recorder != null) {
+            this.rlCheckpointSize = recorder.getRecordedStateCount();
+        }
 
         this.replacementEffectChoice = player.replacementEffectChoice;
         this.autoSelectReplacementEffects.addAll(player.autoSelectReplacementEffects);
@@ -430,8 +448,12 @@ public class HumanPlayer extends PlayerImpl {
     }
     @Override
     public boolean chooseUse(Outcome outcome, String message, String secondMessage, String trueText, String falseText, Ability source, Game game) {
+        Set<Integer> preDecisionState = recorder != null ? recorder.capturePreDecisionState(game, playerId) : null;
         boolean out = chooseUseHelper(outcome, message, secondMessage, trueText, falseText, source, game);
         getPlayerHistory().useSequence.add(out);
+        if (preDecisionState != null) {
+            recorder.recordChooseUse(preDecisionState, out, playerId);
+        }
         return out;
     }
     private boolean chooseUseHelper(Outcome outcome, String message, String secondMessage, String trueText, String falseText, Ability source, Game game) {
@@ -635,8 +657,12 @@ public class HumanPlayer extends PlayerImpl {
     }
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
+        Set<Integer> preDecisionState = recorder != null ? recorder.capturePreDecisionState(game, playerId) : null;
         boolean out = chooseHelper(outcome, choice, game);
         getPlayerHistory().choiceSequence.add(choice.getChoice());
+        if (preDecisionState != null && choice.getChoice() != null) {
+            recorder.recordMakeChoice(preDecisionState, choice.getChoice(), playerId);
+        }
         return out;
     }
     private boolean chooseHelper(Outcome outcome, Choice choice, Game game) {
@@ -792,9 +818,13 @@ public class HumanPlayer extends PlayerImpl {
         boolean out;
         UUID abilityControllerId = target.getAffectedAbilityControllerId(this.getId());
         if(target.possibleTargets(abilityControllerId, source, game).size() > 1) {
+            Set<Integer> preDecisionState = recorder != null ? recorder.capturePreDecisionState(game, playerId) : null;
             out = chooseTargetHelper(outcome, target, source, game);
             getPlayerHistory().targetSequence.addAll(target.getTargets());
             if(!target.isChoiceCompleted(abilityControllerId, source, game, null)) getPlayerHistory().targetSequence.add(STOP_CHOOSING);
+            if (preDecisionState != null) {
+                recorder.recordTargetSelections(preDecisionState, target, abilityControllerId, source, game, null, playerId);
+            }
         } else {
             out = chooseTargetHelper(outcome, target, source, game);
         }
@@ -1033,9 +1063,13 @@ public class HumanPlayer extends PlayerImpl {
         boolean out;
         UUID abilityControllerId = target.getAffectedAbilityControllerId(this.getId());
         if(target.possibleTargets(abilityControllerId, source, game, cards).size() > 1) {
+            Set<Integer> preDecisionState = recorder != null ? recorder.capturePreDecisionState(game, playerId) : null;
             out = chooseTargetHelper(outcome, cards, target, source, game);
             getPlayerHistory().targetSequence.addAll(target.getTargets());
             if(!target.isChoiceCompleted(abilityControllerId, source, game, cards)) getPlayerHistory().targetSequence.add(STOP_CHOOSING);
+            if (preDecisionState != null) {
+                recorder.recordTargetSelections(preDecisionState, target, abilityControllerId, source, game, cards, playerId);
+            }
         } else {
             out = chooseTargetHelper(outcome, cards, target, source, game);
         }
@@ -1195,6 +1229,10 @@ public class HumanPlayer extends PlayerImpl {
 
     @Override
     public boolean priority(Game game) {
+        if (rlCheckpointSize >= 0 && recorder != null && recorder.getRecordedStateCount() > rlCheckpointSize) {
+            recorder.trimToCheckpoint(rlCheckpointSize);
+            rlCheckpointSize = -1;
+        }
         passed = false;
         // TODO: fix problems with turn under out control:
         // TODO: change pass and other states like passedUntilStackResolved for controlling player, not for "this"
@@ -1205,6 +1243,9 @@ public class HumanPlayer extends PlayerImpl {
         //for MCTS opponent
         List<ActivatedAbility> playableAbilities = getPlayable(game, true).stream().filter(a -> !(a instanceof ManaAbility)).collect(Collectors.toList());
         if(playableAbilities.isEmpty() && !game.isCheckPoint(playerId)) {//just pass when only option
+            if (recorder != null) {
+                recorder.recordPassAction(game, playerId);
+            }
             pass(game);
             return false;
         }
@@ -1384,6 +1425,9 @@ public class HumanPlayer extends PlayerImpl {
                 if (response.getBoolean() != null
                         || response.getInteger() != null) {
                     if (!activatingMacro && passWithManaPoolCheck(game)) {
+                        if (recorder != null) {
+                            recorder.recordPassAction(game, playerId);
+                        }
                         return false;
                     } else {
                         if (activatingMacro) {
@@ -2321,6 +2365,9 @@ public class HumanPlayer extends PlayerImpl {
     @Override
     public boolean activateAbility(ActivatedAbility ability, Game game) {
         getManaPool().setStock(); // needed for the "mana already in the pool has to be used manually" option
+        if (recorder != null && !ability.isManaAbility()) {
+            recorder.recordActivateAbility(game, playerId, ability);
+        }
         return super.activateAbility(ability, game);
     }
 
