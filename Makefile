@@ -12,7 +12,7 @@ clean:
 
 .PHONY: build
 build:
-	mvn install package -DskipTests
+	mvn install -DskipTests
 
 .PHONY: package
 package:
@@ -29,7 +29,7 @@ package:
 # and that should be used instead. This script is purely for convenience.
 # The perl script bundles the artifacts into a single zip
 .PHONY: install
-install: clean build package
+install: clean build 
 
 
 .PHONY: run-server
