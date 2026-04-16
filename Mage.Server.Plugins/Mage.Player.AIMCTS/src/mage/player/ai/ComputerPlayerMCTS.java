@@ -319,8 +319,16 @@ public class ComputerPlayerMCTS extends ComputerPlayer {
                 .filter(mode -> !modes.getSelectedModes().contains(mode.getId()))
                 .filter(mode -> mode.getTargets().canChoose(source.getControllerId(), source, game)).collect(Collectors.toList());
         if(modes.getMinModes() == 0) modeOptions.add(null);
-        int chosenMode = makeChoiceAmount(0, modeOptions.size()-1, game, source, false);
-        return modeOptions.get(chosenMode);
+        Mode finalMode;
+        try {
+            int chosenMode = makeChoiceAmount(0, modeOptions.size()-1, game, source, false);
+            finalMode = modeOptions.get(chosenMode);
+        } catch (IndexOutOfBoundsException e) {
+            logger.error("failed to choose mode, defaulting to first option");
+            logger.warn("mode options were: " + modeOptions);
+            finalMode = null;
+        }
+        return finalMode;
     }
     @Override
     public boolean chooseUse(Outcome outcome, String message, String secondMessage, String trueText, String falseText, Ability source, Game game) {

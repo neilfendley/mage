@@ -7,7 +7,9 @@ import mage.cards.repository.CardInfo;
 import mage.constants.MultiplayerAttackOption;
 import mage.constants.PhaseStep;
 import mage.constants.RangeOfInfluence;
+import mage.constants.WatcherScope;
 import mage.game.*;
+import mage.game.events.GameEvent;
 import mage.game.match.Match;
 import mage.game.match.MatchOptions;
 import mage.game.mulligan.MulliganType;
@@ -18,6 +20,7 @@ import mage.player.ai.encoder.LabeledState;
 import mage.player.ai.encoder.StateEncoder;
 import mage.players.Player;
 import mage.util.RandomUtil;
+import mage.watchers.Watcher;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,10 +47,11 @@ public class ParallelDataGenerator {
     // ================================== FILE PATHS ==================================
     protected static String SEEN_FEATURES_PATH = "seenFeatures.ser";
     protected static String FEATURE_TABLE_OUT = "FeatureTable.txt";
-    protected static String WINRATE_OUT = "WinRates.txt";
+    protected static String WINRATE_OUT = "WinRates.json";
 
     // ================================== GLOBAL FIELDS ==================================
     private final FeatureMap seenFeatures = new FeatureMap();
+    public final AtomicInteger gamesStarted = new AtomicInteger(0);
     public final AtomicInteger gameCount = new AtomicInteger(0);
     public final AtomicInteger winCount = new AtomicInteger(0);
     protected RemoteModelEvaluator remoteModelEvaluatorA = null;
@@ -64,6 +69,40 @@ public class ParallelDataGenerator {
 
     protected static Logger logger = Logger.getLogger(ParallelDataGenerator.class);
 
+    private static class TurnDivisibleWatcher extends Watcher {
+        private final int gameNum;
+        private int lastLoggedTurn = 0;
+
+        public TurnDivisibleWatcher(int gameNum) {
+            super(WatcherScope.GAME);
+            this.gameNum = gameNum;
+        }
+
+        public TurnDivisibleWatcher(final TurnDivisibleWatcher watcher) {
+            super(watcher);
+            this.gameNum = watcher.gameNum;
+            this.lastLoggedTurn = watcher.lastLoggedTurn;
+        }
+
+        @Override
+        public void watch(GameEvent event, Game game) {
+            if (game.isSimulation()) {
+                return;
+            }
+            if (event.getType() == GameEvent.EventType.BEGIN_TURN) {
+                int turnNum = game.getState().getTurnNum();
+                if (turnNum > 0 && turnNum % 5 == 0 && turnNum != lastLoggedTurn) {
+                    logger.info("Game #" + gameNum + " is on turn " + turnNum);
+                    lastLoggedTurn = turnNum;
+                }
+            }
+        }
+
+        @Override
+        public TurnDivisibleWatcher copy() {
+            return new TurnDivisibleWatcher(this);
+        }
+    }
 
 
     private static class GameResult {
@@ -87,6 +126,7 @@ public class ParallelDataGenerator {
         //reset counts
         winCount.set(0);
         gameCount.set(0);
+        gamesStarted.set(0);
 
 
         String modelUrlA = "http://" + Config.INSTANCE.server.host + ":" + Config.INSTANCE.server.port;
@@ -185,8 +225,19 @@ public class ParallelDataGenerator {
 
 
         if(Config.INSTANCE.logging.writeFinalWR) {
-            writeResults(WINRATE_OUT, "WR with " + deckNameA + " vs " +
-                    deckNameB + ": " + winCount.get() * 1.0 / gameCount.get() + " in " + gameCount.get() + " games");
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            double wr = gameCount.get() > 0 ? winCount.get() * 1.0 / gameCount.get() : 0;
+            String jsonLine = String.format(
+                "{\"timestamp\": \"%s\", \"win_rate\": %.4f, \"wins\": %d, \"games\": %d, " +
+                "\"player_a\": {\"deck\": \"%s\", \"type\": \"%s\", \"budget\": %d}, " +
+                "\"player_b\": {\"deck\": \"%s\", \"type\": \"%s\", \"budget\": %d}, " +
+                "\"settings\": {\"threads\": %d, \"max_turns\": %d}}",
+                timestamp, wr, winCount.get(), gameCount.get(),
+                deckNameA, Config.INSTANCE.playerA.type, Config.INSTANCE.playerA.mcts.searchBudget,
+                deckNameB, Config.INSTANCE.playerB.type, Config.INSTANCE.playerB.mcts.searchBudget,
+                Config.INSTANCE.training.threads, Config.INSTANCE.training.maxTurns
+            );
+            writeResults(WINRATE_OUT, jsonLine);
         }
 
 
@@ -299,6 +350,8 @@ public class ParallelDataGenerator {
             game = new TwoPlayerDuel(MultiplayerAttackOption.LEFT, RangeOfInfluence.ONE, MulliganType.GAME_DEFAULT.getMulligan(0), 60, 20, 7);
             Player playerA = createLocalPlayer(game, "PlayerA", Config.INSTANCE.playerA.deckPath, localMatch);
             Player playerB = createLocalPlayer(game, "PlayerB", Config.INSTANCE.playerB.deckPath, localMatch);
+
+            game.getState().addWatcher(new TurnDivisibleWatcher(gamesStarted.incrementAndGet()));
 
 
             configurePlayer(playerA, threadEncoderA, threadEncoderB);
