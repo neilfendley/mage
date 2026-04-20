@@ -78,9 +78,17 @@ Mage.Tests/testing.bin
 *.hdf5
 *.png
 /plugins/images
+<<<<<<< HEAD
+=======
+Mage.Tests/FeatureTable.txt
+Mage.MageZero/FeatureTable.txt
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
 
 # build targets
 /deploy
 /temp
+<<<<<<< HEAD
 FeatureTable.txt
 WinRates.txt
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616

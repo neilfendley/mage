@@ -57,6 +57,7 @@ public enum SubType {
     ATTRACTION("Attraction", SubTypeSet.ArtifactType),
     BLOOD("Blood", SubTypeSet.ArtifactType),
     BOBBLEHEAD("Bobblehead", SubTypeSet.ArtifactType),
+    BOOK("Book", SubTypeSet.ArtifactType),
     CLUE("Clue", SubTypeSet.ArtifactType),
     CONTRAPTION("Contraption", SubTypeSet.ArtifactType),
     EQUIPMENT("Equipment", SubTypeSet.ArtifactType),
@@ -207,6 +208,7 @@ public enum SubType {
     GARGOYLE("Gargoyle", SubTypeSet.CreatureType),
     GERM("Germ", SubTypeSet.CreatureType),
     GIANT("Giant", SubTypeSet.CreatureType),
+    GIRAFFE("Giraffe", SubTypeSet.CreatureType),
     GITH("Gith", SubTypeSet.CreatureType),
     GLIMMER("Glimmer", SubTypeSet.CreatureType),
     GNOLL("Gnoll", SubTypeSet.CreatureType),
@@ -491,6 +493,7 @@ public enum SubType {
     DAKKON("Dakkon", SubTypeSet.PlaneswalkerType),
     DARETTI("Daretti", SubTypeSet.PlaneswalkerType),
     DAVRIEL("Davriel", SubTypeSet.PlaneswalkerType),
+    DELLIAN("Dellian", SubTypeSet.PlaneswalkerType),
     DIHADA("Dihada", SubTypeSet.PlaneswalkerType),
     DOMRI("Domri", SubTypeSet.PlaneswalkerType),
     DOOKU("Dooku", SubTypeSet.PlaneswalkerType, true), // Star Wars

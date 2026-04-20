@@ -85,6 +85,10 @@ public interface Permanent extends Card, Controllable {
 
     void setPrototyped(boolean value);
 
+    boolean isPrepared();
+
+    void setPrepared(boolean prepared,Game game);
+
     int getClassLevel();
 
     /**

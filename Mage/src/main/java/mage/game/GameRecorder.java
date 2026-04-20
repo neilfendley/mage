@@ -11,6 +11,7 @@ import java.util.function.BiFunction;
 
 /**
  * Interface for recording game decisions for RL training data.
+<<<<<<< HEAD
  * Implementations handle state encoding, action encoding, and data persistence.
  * Defined in core Mage so any player type can use it without AI module dependencies.
  *
@@ -20,6 +21,11 @@ import java.util.function.BiFunction;
 public interface GameRecorder {
 
     // Factory registry — allows core/server code to create recorders without AI module dependency
+=======
+ */
+public interface GameRecorder {
+
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     final class Factory {
         private static BiFunction<UUID, UUID, GameRecorder> instance;
 

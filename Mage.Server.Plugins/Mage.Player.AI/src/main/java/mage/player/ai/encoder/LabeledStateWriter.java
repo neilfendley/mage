@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
+<<<<<<< HEAD
  * Row-major HDF5 writer for MageZero datasets.
  *
  * Layout:
@@ -27,12 +28,16 @@ import java.util.Set;
  * - No compression (fastest random read).
  * - Chunk rows by rowsChunk; columns are fixed width (A+4).
  * - Indices are sorted per row to keep CSR tidy (optional).
+=======
+ * Row-major HDF5 writer for MageZero-compatible datasets.
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
  */
 public final class LabeledStateWriter implements Closeable, Flushable {
 
     public final Set<Integer> batchFeatures = new HashSet<>();
     public int batchStates = 0;
 
+<<<<<<< HEAD
     private final int actionDim;   // A
 
     private final IHDF5Writer writer;
@@ -42,25 +47,44 @@ public final class LabeledStateWriter implements Closeable, Flushable {
 
     public LabeledStateWriter(String path) throws IOException {
         this(path, /*actionDim*/128, /*rowsChunk*/2048, /*idxChunk*/1_000_000);
+=======
+    private final int actionDim;
+    private final IHDF5Writer writer;
+
+    private long nRows = 0;
+    private long nNnz = 0;
+
+    public LabeledStateWriter(String path) throws IOException {
+        this(path, 128, 2048, 1_000_000);
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     }
 
     public LabeledStateWriter(String path, int actionDim, int rowsChunk, int idxChunk) throws IOException {
         this.actionDim = actionDim;
+<<<<<<< HEAD
         // chunk size for rows
         // chunk size for /indices
 
         try {
 
+=======
+        try {
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
             Path parentDir = Paths.get(path).getParent();
             if (parentDir != null && !Files.exists(parentDir)) {
                 Files.createDirectories(parentDir);
             }
+<<<<<<< HEAD
             
+=======
+
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
             this.writer = HDF5Factory.configure(path)
                     .overwrite()
                     .useUTF8CharacterEncoding()
                     .writer();
 
+<<<<<<< HEAD
             // indices: 1D int32, extendable, uncompressed
             writer.int32().createArray(
                     "/indices",
@@ -86,6 +110,19 @@ public final class LabeledStateWriter implements Closeable, Flushable {
                     /*sizeY cols*/rowWidth,
                     /*blockX*/rowsChunk,
                     /*blockY*/rowWidth,
+=======
+            writer.int32().createArray("/indices", 0L, idxChunk, HDF5IntStorageFeatures.INT_NO_COMPRESSION);
+            writer.int64().createArray("/offsets", 1L, Math.max(rowsChunk, 512), HDF5IntStorageFeatures.INT_NO_COMPRESSION);
+            writer.int64().writeArrayBlockWithOffset("/offsets", new long[]{0L}, 1, 0L);
+
+            int rowWidth = actionDim + 4;
+            writer.float32().createMatrix(
+                    "/row",
+                    0L,
+                    rowWidth,
+                    rowsChunk,
+                    rowWidth,
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
                     HDF5FloatStorageFeatures.FLOAT_NO_COMPRESSION
             );
         } catch (Exception e) {
@@ -93,6 +130,7 @@ public final class LabeledStateWriter implements Closeable, Flushable {
         }
     }
 
+<<<<<<< HEAD
     /** Append one record. */
     public synchronized void writeRecord(LabeledState s) throws IOException {
         try {
@@ -133,6 +171,41 @@ public final class LabeledStateWriter implements Closeable, Flushable {
             nRows++;
             batchStates++;
             batchFeatures.addAll(s.stateVector);
+=======
+    public synchronized void writeRecord(LabeledState state) throws IOException {
+        try {
+            int[] stateVector = state.stateVector.stream().mapToInt(Integer::intValue).toArray();
+            if (stateVector.length > 1) {
+                Arrays.sort(stateVector);
+            }
+            if (stateVector.length > 0) {
+                writer.int32().writeArrayBlockWithOffset("/indices", stateVector, stateVector.length, nNnz);
+                nNnz += stateVector.length;
+            }
+            writer.int64().writeArrayBlockWithOffset("/offsets", new long[]{nNnz}, 1, nRows + 1);
+
+            int rowWidth = actionDim + 4;
+            float[] row = new float[rowWidth];
+
+            int copy = Math.min(actionDim, state.actionVector.length);
+            for (int i = 0; i < copy; i++) {
+                row[i] = (float) state.actionVector[i];
+            }
+            for (int i = copy; i < actionDim; i++) {
+                row[i] = 0f;
+            }
+
+            row[actionDim] = (float) state.resultLabel;
+            row[actionDim + 1] = (float) state.stateScore;
+            row[actionDim + 2] = state.isPlayer ? 1f : 0f;
+            row[actionDim + 3] = (float) state.actionType.ordinal();
+
+            writer.float32().writeMatrixBlockWithOffset("/row", new float[][]{row}, 1, rowWidth, nRows, 0);
+
+            nRows++;
+            batchStates++;
+            batchFeatures.addAll(state.stateVector);
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
         } catch (Exception e) {
             throw new IOException("HDF5 append failed", e);
         }
@@ -140,13 +213,32 @@ public final class LabeledStateWriter implements Closeable, Flushable {
 
     @Override
     public synchronized void flush() throws IOException {
+<<<<<<< HEAD
         try { writer.file().flush(); }
         catch (Exception e) { throw new IOException("HDF5 flush failed", e); }
+=======
+        try {
+            writer.file().flush();
+        } catch (Exception e) {
+            throw new IOException("HDF5 flush failed", e);
+        }
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     }
 
     @Override
     public synchronized void close() throws IOException {
+<<<<<<< HEAD
         try { flush(); } catch (IOException ignored) {}
         try { writer.close(); } catch (Exception ignored) {}
+=======
+        try {
+            flush();
+        } catch (IOException ignored) {
+        }
+        try {
+            writer.close();
+        } catch (Exception ignored) {
+        }
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     }
 }

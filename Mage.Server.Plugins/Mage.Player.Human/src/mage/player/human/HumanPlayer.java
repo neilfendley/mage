@@ -121,7 +121,10 @@ public class HumanPlayer extends PlayerImpl {
 
     protected boolean holdingPriority;
 
+<<<<<<< HEAD
     // RL training data recording (uses GameRecorder interface to avoid AI module dependency)
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     private transient GameRecorder recorder;
     private transient int rlCheckpointSize = -1;
 
@@ -149,6 +152,7 @@ public class HumanPlayer extends PlayerImpl {
         return recorder;
     }
 
+<<<<<<< HEAD
     public boolean isRlRecordingEnabled() {
         return recorder != null;
     }
@@ -157,6 +161,8 @@ public class HumanPlayer extends PlayerImpl {
         return recorder != null ? recorder.writeRLData(playerAPath, playerBPath, playerWon, tdDiscount) : 0;
     }
 
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     private void initReplacementDialog() {
         replacementEffectChoice = new ChoiceImpl(true);
         replacementEffectChoice.setMessage("Choose replacement effect to resolve first");
@@ -181,6 +187,10 @@ public class HumanPlayer extends PlayerImpl {
     public HumanPlayer(final HumanPlayer player) {
         super(player);
         this.response = player.response;
+        this.recorder = player.recorder;
+        if (recorder != null) {
+            this.rlCheckpointSize = recorder.getRecordedStateCount();
+        }
 
         // Preserve recorder across copies/checkpoints.
         // Shared reference is intentional so states accumulate in one list.
@@ -662,7 +672,10 @@ public class HumanPlayer extends PlayerImpl {
         }
         return fullText;
     }
-
+    @Override
+    public boolean isManualTappingAI() {
+        return isHumanManualTap;
+    }
     @Override
     public boolean choose(Outcome outcome, Choice choice, Game game) {
         Set<Integer> preDecisionState = recorder != null ? recorder.capturePreDecisionState(game, playerId) : null;
@@ -1237,10 +1250,14 @@ public class HumanPlayer extends PlayerImpl {
 
     @Override
     public boolean priority(Game game) {
+<<<<<<< HEAD
         // If this player was restored from a checkpoint (undo), trim any states
         // that were recorded after the checkpoint was taken.
         if (rlCheckpointSize >= 0 && recorder != null
                 && recorder.getRecordedStateCount() > rlCheckpointSize) {
+=======
+        if (rlCheckpointSize >= 0 && recorder != null && recorder.getRecordedStateCount() > rlCheckpointSize) {
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
             recorder.trimToCheckpoint(rlCheckpointSize);
             rlCheckpointSize = -1;
         }
@@ -1254,7 +1271,13 @@ public class HumanPlayer extends PlayerImpl {
         //for MCTS opponent
         List<ActivatedAbility> playableAbilities = getPlayable(game, true).stream().filter(a -> !(a instanceof ManaAbility)).collect(Collectors.toList());
         if(playableAbilities.isEmpty() && !game.isCheckPoint(playerId)) {//just pass when only option
+<<<<<<< HEAD
             if (recorder != null) recorder.recordPassAction(game, playerId);
+=======
+            if (recorder != null) {
+                recorder.recordPassAction(game, playerId);
+            }
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
             pass(game);
             return false;
         }
@@ -1434,7 +1457,13 @@ public class HumanPlayer extends PlayerImpl {
                 if (response.getBoolean() != null
                         || response.getInteger() != null) {
                     if (!activatingMacro && passWithManaPoolCheck(game)) {
+<<<<<<< HEAD
                         if (recorder != null) recorder.recordPassAction(game, playerId);
+=======
+                        if (recorder != null) {
+                            recorder.recordPassAction(game, playerId);
+                        }
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
                         return false;
                     } else {
                         if (activatingMacro) {

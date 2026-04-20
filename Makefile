@@ -30,6 +30,7 @@ package:
 # The perl script bundles the artifacts into a single zip
 .PHONY: install
 install: clean build 
+<<<<<<< HEAD
 
 # JVM --add-opens flags for Java 17+ are in .mvn/jvm.config
 # (auto-loaded by Maven on all platforms)
@@ -63,4 +64,17 @@ run-server:
 run-client:
 	cd Mage.Client && mvn exec:java \
 		-Dexec.mainClass="mage.client.MageFrame"
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
 
+
+.PHONY: run-server
+run-server:
+	cd Mage.Server && mvn exec:java \
+		-Dexec.mainClass="mage.server.Main" \
+		-Dxmage.dataCollectors.rlTrainingData=true
+
+.PHONY: run-client
+run-client:
+	cd Mage.Client && mvn exec:java \
+		-Dexec.mainClass="mage.client.MageFrame"

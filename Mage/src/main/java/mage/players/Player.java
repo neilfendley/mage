@@ -279,16 +279,22 @@ public interface Player extends MageItem, Copyable<Player> {
 
     boolean hasWon();
 
+<<<<<<< HEAD
     /**
      * Returns the GameRecorder attached to this player, or null if none.
      * Used by DataCollectors to persist RL training data after game end.
      */
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     default GameRecorder getRecorder() {
         return null;
     }
 
     default void setRecorder(GameRecorder recorder) {
+<<<<<<< HEAD
         // no-op by default — override in player implementations that support recording
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     }
 
     boolean hasQuit();

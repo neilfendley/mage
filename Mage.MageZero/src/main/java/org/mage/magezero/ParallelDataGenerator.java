@@ -7,7 +7,9 @@ import mage.cards.repository.CardInfo;
 import mage.constants.MultiplayerAttackOption;
 import mage.constants.PhaseStep;
 import mage.constants.RangeOfInfluence;
+import mage.constants.WatcherScope;
 import mage.game.*;
+import mage.game.events.GameEvent;
 import mage.game.match.Match;
 import mage.game.match.MatchOptions;
 import mage.game.mulligan.MulliganType;
@@ -18,9 +20,13 @@ import mage.player.ai.PerfStats;
 import mage.player.ai.encoder.LabeledState;
 import mage.player.ai.encoder.LabeledStateWriter;
 import mage.player.ai.encoder.StateEncoder;
+<<<<<<< HEAD
 import mage.player.ai.recorder.PlayerRecorder;
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
 import mage.players.Player;
 import mage.util.RandomUtil;
+import mage.watchers.Watcher;
 import org.apache.log4j.Logger;
 import org.apache.log4j.Level;
 import org.jetbrains.annotations.NotNull;
@@ -32,8 +38,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+<<<<<<< HEAD
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+=======
+import java.text.SimpleDateFormat;
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
 import java.util.*;
 import java.util.concurrent.*;
 import java.io.ObjectOutputStream;
@@ -58,10 +68,11 @@ public class ParallelDataGenerator {
     // ================================== FILE PATHS ==================================
     protected static String SEEN_FEATURES_PATH = "seenFeatures.ser";
     protected static String FEATURE_TABLE_OUT = "FeatureTable.txt";
-    protected static String WINRATE_OUT = "WinRates.txt";
+    protected static String WINRATE_OUT = "WinRates.json";
 
     // ================================== GLOBAL FIELDS ==================================
     private final FeatureMap seenFeatures = new FeatureMap();
+    public final AtomicInteger gamesStarted = new AtomicInteger(0);
     public final AtomicInteger gameCount = new AtomicInteger(0);
     public final AtomicInteger winCount = new AtomicInteger(0);
     protected RemoteModelEvaluator remoteModelEvaluatorA = null;
@@ -81,12 +92,47 @@ public class ParallelDataGenerator {
 
     protected static Map<String, DeckCardLists> loadedDecks = new HashMap<>(); // deck's cache
     protected static Map<String, CardInfo> loadedCardInfo = new HashMap<>(); // db card's cache
+    private static final int maxGameTime = 20;
 
 
 
     protected static Logger logger = Logger.getLogger(ParallelDataGenerator.class);
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
+    private static class TurnDivisibleWatcher extends Watcher {
+        private final int gameNum;
+        private int lastLoggedTurn = 0;
+
+        public TurnDivisibleWatcher(int gameNum) {
+            super(WatcherScope.GAME);
+            this.gameNum = gameNum;
+        }
+
+        public TurnDivisibleWatcher(final TurnDivisibleWatcher watcher) {
+            super(watcher);
+            this.gameNum = watcher.gameNum;
+            this.lastLoggedTurn = watcher.lastLoggedTurn;
+        }
+
+        @Override
+        public void watch(GameEvent event, Game game) {
+            if (game.isSimulation()) {
+                return;
+            }
+            if (event.getType() == GameEvent.EventType.BEGIN_TURN) {
+                int turnNum = game.getState().getTurnNum();
+                if (turnNum > 0 && turnNum % 5 == 0 && turnNum != lastLoggedTurn) {
+                    logger.info("Game #" + gameNum + " is on turn " + turnNum);
+                    lastLoggedTurn = turnNum;
+                }
+            }
+        }
+
+        @Override
+        public TurnDivisibleWatcher copy() {
+            return new TurnDivisibleWatcher(this);
+        }
+    }
 
 
     private static class GameResult implements Serializable {
@@ -120,6 +166,7 @@ public class ParallelDataGenerator {
         //reset counts
         winCount.set(0);
         gameCount.set(0);
+        gamesStarted.set(0);
 
 
         String modelUrlA = "http://" + Config.INSTANCE.server.host + ":" + Config.INSTANCE.server.port;
@@ -188,6 +235,7 @@ public class ParallelDataGenerator {
         deckNameA = extractDeckName(Config.INSTANCE.playerA.deckPath);
         deckNameB = extractDeckName(Config.INSTANCE.playerB.deckPath);
 
+<<<<<<< HEAD
         // Create timestamped subdirectories
         // String timestampedDirA = Config.INSTANCE.outputDir + "/" + timestamp;
         // String timestampedDirB = Config.INSTANCE.outputDir + "/" + timestamp;
@@ -205,6 +253,15 @@ public class ParallelDataGenerator {
         try {
             fwA = new LabeledStateWriter(Config.INSTANCE.outputDir + "/" + fileA);
             fwB = new LabeledStateWriter(Config.INSTANCE.outputDir + "/" + fileB);
+=======
+        // String fileA = deckNameA + "_vs_" + deckNameB + ".hdf5";
+        // String fileB = deckNameB + "_vs_" + deckNameA + ".hdf5";
+
+        try {
+            fwA = new LabeledStateWriter(Config.INSTANCE.playerA.outputFile);
+            fwB = new LabeledStateWriter(Config.INSTANCE.playerB.outputFile);
+            writer = getThread(fwA, fwB);
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -235,8 +292,19 @@ public class ParallelDataGenerator {
 
 
         if(Config.INSTANCE.logging.writeFinalWR) {
-            writeResults(WINRATE_OUT, "WR with " + deckNameA + " vs " +
-                    deckNameB + ": " + winCount.get() * 1.0 / gameCount.get() + " in " + gameCount.get() + " games");
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            double wr = gameCount.get() > 0 ? winCount.get() * 1.0 / gameCount.get() : 0;
+            String jsonLine = String.format(
+                "{\"timestamp\": \"%s\", \"win_rate\": %.4f, \"wins\": %d, \"games\": %d, " +
+                "\"player_a\": {\"deck\": \"%s\", \"type\": \"%s\", \"budget\": %d}, " +
+                "\"player_b\": {\"deck\": \"%s\", \"type\": \"%s\", \"budget\": %d}, " +
+                "\"settings\": {\"threads\": %d, \"max_turns\": %d}}",
+                timestamp, wr, winCount.get(), gameCount.get(),
+                deckNameA, Config.INSTANCE.playerA.type, Config.INSTANCE.playerA.mcts.searchBudget,
+                deckNameB, Config.INSTANCE.playerB.type, Config.INSTANCE.playerB.mcts.searchBudget,
+                Config.INSTANCE.training.threads, Config.INSTANCE.training.maxTurns
+            );
+            writeResults(WINRATE_OUT, jsonLine);
         }
 
         PerfStats.printSummary();
@@ -304,7 +372,10 @@ public class ParallelDataGenerator {
         int successfulGames = 0;
         int failedGames = 0;
         try {
-            List<Future<GameResult>> futures = executor.invokeAll(tasks);
+            List<Future<GameResult>> futures = new ArrayList<>();
+            for (Callable<GameResult> task : tasks) {
+                futures.add(executor.submit(task));
+            }
             executor.shutdown();
             
             // Wait for executor to terminate all threads
@@ -320,7 +391,21 @@ public class ParallelDataGenerator {
             // The merging into the global feature map and HDF5 files will be done after all threads terminate.
             for (Future<GameResult> future : futures) {
                 try {
+<<<<<<< HEAD
                     future.get();
+=======
+                    // future.get() will block until the task is complete.
+                    GameResult result = future.get(maxGameTime, TimeUnit.MINUTES);
+                    if (result.didPlayerAWin()) {
+                        wins++;
+                    }
+                    successfulGames++;
+
+                } catch (TimeoutException e) {
+                    future.cancel(true);
+                    failedGames++;
+                    logger.error("Game timed out after " + maxGameTime + " minutes, cancelling.");
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
                 } catch (ExecutionException e) {
                     failedGames++;
                     logger.error("A game simulation failed and its result will be ignored. Cause: " + e.getCause());
@@ -337,7 +422,7 @@ public class ParallelDataGenerator {
         logger.info(String.format("Total requested: %d games", numGames));
         logger.info(String.format("Successful: %d", successfulGames));
         logger.info(String.format("Failed: %d", failedGames));
-        logger.info(String.format("Player A win rate: %.2f%% (%d/%d)", (100.0 * wins / numGames), wins, numGames));
+        logger.info(String.format("Player A win rate: %.2f%% (%d/%d)", (100.0 * wins / successfulGames), wins, successfulGames));
     }
     private GameResult runSingleGame() throws ExecutionException {
         long seed = ThreadLocalRandom.current().nextLong();
@@ -362,6 +447,8 @@ public class ParallelDataGenerator {
             game = new TwoPlayerDuel(MultiplayerAttackOption.LEFT, RangeOfInfluence.ONE, MulliganType.GAME_DEFAULT.getMulligan(0), 60, 20, 7);
             Player playerA = createLocalPlayer(game, "PlayerA", Config.INSTANCE.playerA.deckPath, localMatch);
             Player playerB = createLocalPlayer(game, "PlayerB", Config.INSTANCE.playerB.deckPath, localMatch);
+
+            game.getState().addWatcher(new TurnDivisibleWatcher(gamesStarted.incrementAndGet()));
 
 
             configurePlayer(playerA, threadEncoderA, threadEncoderB);
@@ -504,6 +591,7 @@ public class ParallelDataGenerator {
                 mcts2.searchBudget = Config.INSTANCE.playerA.mcts.searchBudget;
                 mcts2.searchTimeout = (double) Config.INSTANCE.playerA.mcts.timeoutMs /1000;
                 mcts2.autoTap = !Config.INSTANCE.playerA.gameplay.manualTap;
+                mcts2.priorTemp = Config.INSTANCE.playerA.priors.priorTemperature;
                 if(remoteModelEvaluatorA == null || Config.INSTANCE.playerA.mcts.offlineMode) mcts2.offlineMode = true;
             } else {
                 mcts2.nn = remoteModelEvaluatorB;
@@ -516,6 +604,7 @@ public class ParallelDataGenerator {
                 mcts2.searchBudget = Config.INSTANCE.playerB.mcts.searchBudget;
                 mcts2.searchTimeout = (double) Config.INSTANCE.playerB.mcts.timeoutMs /1000;
                 mcts2.autoTap = !Config.INSTANCE.playerB.gameplay.manualTap;
+                mcts2.priorTemp = Config.INSTANCE.playerB.priors.priorTemperature;
                 if(remoteModelEvaluatorB == null || Config.INSTANCE.playerB.mcts.offlineMode) mcts2.offlineMode = true;
             }
         } else if (player.getRealPlayer() instanceof ComputerPlayer8) {

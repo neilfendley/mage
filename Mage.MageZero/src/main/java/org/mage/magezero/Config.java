@@ -5,6 +5,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 
@@ -22,7 +23,7 @@ public class Config {
     public static void load(String path) {
         try {
             Yaml yaml = new Yaml();
-            Map<String, Object> raw = yaml.load(new FileInputStream(path));
+            Map<String, Object> raw = yaml.load(Files.newInputStream(Paths.get(path)));
             INSTANCE = new Config(raw);
         } catch (Exception e) {
             throw new RuntimeException("Failed to load config: " + path, e);
@@ -54,8 +55,12 @@ public class Config {
     public static class PlayerConfig {
         public String deckPath;
         public String type;
+<<<<<<< HEAD
         public String outputDir;
         public int skill;
+=======
+        public String outputFile;
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
         public final PriorsConfig priors;
         public final NoiseConfig noise;
         public final MctsConfig mcts;
@@ -66,8 +71,12 @@ public class Config {
         public PlayerConfig(Map<String, Object> raw) {
             this.deckPath = (String) raw.get("deckPath");
             this.type = (String) raw.getOrDefault("type", "mcts");
+<<<<<<< HEAD
             this.outputDir = (String) raw.getOrDefault("output_dir", "data/");
             this.skill = ((Number) raw.getOrDefault("skill", 6)).intValue();
+=======
+            this.outputFile = (String) raw.getOrDefault("output_file", "data/output.hdf5");
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
             this.priors = new PriorsConfig((Map<String, Object>) raw.getOrDefault("priors", Collections.emptyMap()));
             this.noise = new NoiseConfig((Map<String, Object>) raw.getOrDefault("noise", Collections.emptyMap()));
             this.mcts = new MctsConfig((Map<String, Object>) raw.getOrDefault("mcts", Collections.emptyMap()));
@@ -81,12 +90,14 @@ public class Config {
         public final boolean target;
         public final boolean binary;
         public final boolean opponent;
+        public final double priorTemperature;
 
         public PriorsConfig(Map<String, Object> raw) {
             this.priority = (boolean) raw.getOrDefault("priority", false);
             this.target = (boolean) raw.getOrDefault("target", false);
             this.binary = (boolean) raw.getOrDefault("binary", false);
             this.opponent = (boolean) raw.getOrDefault("opponent", false);
+            this.priorTemperature = ((Number) raw.getOrDefault("prior_temperature", 1.5)).doubleValue();
         }
     }
 
@@ -102,7 +113,7 @@ public class Config {
         public int searchBudget;
         public int timeoutMs;
         public final double tdDiscount;
-        public final boolean offlineMode;
+        public boolean offlineMode;
 
         public MctsConfig(Map<String, Object> raw) {
             this.searchBudget = ((Number) raw.getOrDefault("search_budget", 300)).intValue();
@@ -114,7 +125,7 @@ public class Config {
 
     public static class GameplayConfig {
         public final boolean mulligans;
-        public final boolean manualTap;
+        public boolean manualTap;
 
         public GameplayConfig(Map<String, Object> raw) {
             this.mulligans = (boolean) raw.getOrDefault("mulligans_enabled", true);

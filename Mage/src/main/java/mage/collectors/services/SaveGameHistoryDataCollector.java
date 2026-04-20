@@ -1,8 +1,10 @@
 package mage.collectors.services;
 
 import mage.cards.decks.DeckFormats;
+import mage.constants.CardType;
 import mage.constants.TableState;
 import mage.game.Game;
+import mage.MageObject;
 import mage.game.Table;
 import mage.game.match.MatchPlayer;
 import mage.players.Player;
@@ -14,12 +16,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
@@ -82,6 +84,9 @@ public class SaveGameHistoryDataCollector extends EmptyDataCollector {
     // prepared dirs for each table or game - if it returns empty string then logs will be disabled, e.g. on too many data
     Map<UUID, String> tableDirs = new ConcurrentHashMap<>();
     Map<UUID, String> gameDirs = new ConcurrentHashMap<>();
+
+    // stats: gameId -> playerName -> cardType -> count
+    Map<UUID, Map<String, Map<CardType, Integer>>> gameStats = new ConcurrentHashMap<>();
 
     // all write operations must be done in single thread
     // TODO: analyse load tests performance and split locks per table/game
@@ -183,11 +188,111 @@ public class SaveGameHistoryDataCollector extends EmptyDataCollector {
     public void onGameLog(Game game, String message) {
         if (!this.enabled) return;
         writeToGameLogsFile(game, new Date() + " [LOG] " + CardUtil.getTurnInfo(game) + ": " + message);
+
+        // Track when a player casts a spell or plays a land by monitoring the log messages.
+        // We use regex to match the standardized log formats. Crucially, we match 'from hand' to 
+        // capture both spells being cast AND lands being put onto the battlefield, while avoiding 
+        // double-counting permanents resolving ('from stack onto the Battlefield').
+        // Format: <font color='#20B2AA'>PlayerName</font> [casts/puts] <font color='...' object_id='...'>CardName</font> [hex] from hand
+        Pattern pattern = Pattern.compile("<font color='#20B2AA'>(.*?)</font> (?:casts|puts) <font color='.*?' object_id='(.*?)'>(.*?)</font> \\[[a-f0-9]+\\] from hand");
+        Matcher matcher = pattern.matcher(message);
+        
+        if (matcher.find()) {
+            String playerName = matcher.group(1);
+            String objectIdStr = matcher.group(2);
+            
+            try {
+                UUID objectId = UUID.fromString(objectIdStr);
+                // Retrieve the actual MageObject using its parsed UUID.
+                // This allows us to access the actual game state data for the card, rather than relying on the text name.
+                MageObject mageObject = game.getObject(objectId);
+                if (mageObject != null) {
+                    recordTypeStats(game.getId(), playerName, mageObject, game);
+                }
+            } catch (IllegalArgumentException e) {
+                // Safely ignore UUID parsing errors if a log string somehow triggered a false positive match
+            }
+        }
+    }
+
+    /**
+     * Examines a played/cast card's types and updates the player's lifetime statistics for the current game.
+     * Supports tracking cards that possess multiple target types simultaneously (e.g., an Artifact Creature increments both counters).
+     */
+    private void recordTypeStats(UUID gameId, String playerName, MageObject mageObject, Game game) {
+        // Retrieve or initialize the player's stat tracker for this specific game
+        Map<String, Map<CardType, Integer>> playerStats = gameStats.computeIfAbsent(gameId, k -> new ConcurrentHashMap<>());
+        Map<CardType, Integer> typeCounts = playerStats.computeIfAbsent(playerName, k -> new ConcurrentHashMap<>());
+
+        // Fetch the dynamic card types from the game state
+        List<CardType> cardTypes = mageObject.getCardType(game);
+        
+        // We only care about tracking these six fundamental Magic: The Gathering card types
+        Set<CardType> targetTypes = EnumSet.of(CardType.CREATURE, CardType.ARTIFACT, CardType.ENCHANTMENT, CardType.INSTANT, CardType.SORCERY, CardType.LAND);
+
+        // Increment the count for every target type this card possesses
+        for (CardType type : cardTypes) {
+            if (targetTypes.contains(type)) {
+                typeCounts.merge(type, 1, Integer::sum);
+            }
+        }
+    }
+
+    /**
+     * Serializes the gathered card type statistics into a human-readable text file ("type_stats.txt")
+     * within the game's output directory. 
+     */
+    private void writeTypeStatsToFile(Game game) {
+        Map<String, Map<CardType, Integer>> playerStats = gameStats.get(game.getId());
+        if (playerStats == null || playerStats.isEmpty()) {
+            return; // No recorded plays (e.g., game aborted early or simulated without players)
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Card Type Stats for Game: ").append(game.getId()).append("\n");
+        sb.append("========================================\n");
+
+        // Sort player names alphabetically for consistent reporting
+        List<String> sortedPlayers = new ArrayList<>(playerStats.keySet());
+        Collections.sort(sortedPlayers);
+
+        // The specific types and specific order requested for the output
+        CardType[] targetTypes = {CardType.CREATURE, CardType.ARTIFACT, CardType.ENCHANTMENT, CardType.INSTANT, CardType.SORCERY, CardType.LAND};
+
+        // Format each player's totals
+        for (String playerName : sortedPlayers) {
+            sb.append("Player: ").append(playerName).append("\n");
+            Map<CardType, Integer> counts = playerStats.get(playerName);
+            for (CardType type : targetTypes) {
+                int count = counts.getOrDefault(type, 0); // Default to 0 if they played 0 cards of this type
+                sb.append("  ").append(type.toString()).append(": ").append(count).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        // Save the generated report to the game's designated output directory alongside the logs
+        String gameDir = getOrCreateGameDir(game, isActive(game));
+        if (!gameDir.isEmpty()) {
+            Path statsFile = Paths.get(gameDir, "type_stats.txt");
+            try {
+                Files.write(statsFile, sb.toString().getBytes(StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                logger.error("Can't write type_stats.txt for game " + game.getId() + ": " + e, e);
+            }
+        }
     }
 
     @Override
     public void onGameEnd(Game game) {
         if (!this.enabled) return;
+        
+        // Generate and save the final card type statistics file before the game directory 
+        // is moved from "games_active" to "games_done".
+        writeTypeStatsToFile(game);
+        
+        // Clean up memory to prevent a leak across multiple server games
+        gameStats.remove(game.getId());
+
         writeToGameLogsFile(game, new Date() + " [END] " + game.getId() + ", " + game);
 
         // good end - move game data to done folder

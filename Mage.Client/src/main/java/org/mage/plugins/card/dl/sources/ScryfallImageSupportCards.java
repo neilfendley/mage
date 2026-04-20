@@ -624,6 +624,8 @@ public class ScryfallImageSupportCards {
             add("TMC"); // Teenage Mutant Ninja Turtles Eternal
             add("PZA"); // Teenage Mutant Ninja Turtles Source Material
             add("SOS"); // Secrets of Strixhaven
+            add("SOC"); // Secrets of Strixhaven Commander
+            add("SOA"); // Secrets of Strixhaven Mystical Archive
             add("MSH"); // Marvel Super Heroes
             add("MSC"); // Marvel Super Heroes Commander
 

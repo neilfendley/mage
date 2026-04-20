@@ -247,6 +247,7 @@ Starter 1999|S99|
 Starter Commander Decks|SCD|
 Strixhaven: School of Mages|STX|
 Secrets of Strixhaven|SOS|
+Secrets of Strixhaven Commander|SOC|
 Scourge|SCG|
 Secret Lair|SLD|
 Secret Lair Showdown|SLP|

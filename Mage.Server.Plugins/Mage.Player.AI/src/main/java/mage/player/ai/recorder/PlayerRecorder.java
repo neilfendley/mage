@@ -13,6 +13,7 @@ import mage.target.Target;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
+<<<<<<< HEAD
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
@@ -25,12 +26,23 @@ import java.util.Date;
 /**
  * Records game decisions for RL training data. Encapsulates all StateEncoder/ActionEncoder
  * logic so player implementations only need to depend on the GameRecorder interface.
+=======
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Records game decisions for RL training data.
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
  */
 public class PlayerRecorder implements GameRecorder {
 
     private static final Logger logger = Logger.getLogger(PlayerRecorder.class);
 
+<<<<<<< HEAD
     /** Register the factory so core/server code can create recorders without AI imports. */
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     static {
         GameRecorder.Factory.register((playerId, opponentId) -> {
             StateEncoder encoder = new StateEncoder();
@@ -40,11 +52,14 @@ public class PlayerRecorder implements GameRecorder {
         });
     }
 
+<<<<<<< HEAD
     /** Force class loading to trigger the static initializer. */
     public static void ensureRegistered() {
         // no-op — loading this class registers the factory
     }
 
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     private final StateEncoder stateEncoder;
     private final ActionEncoder actionEncoder;
 
@@ -53,10 +68,13 @@ public class PlayerRecorder implements GameRecorder {
         this.actionEncoder = new ActionEncoder();
     }
 
+<<<<<<< HEAD
     public StateEncoder getStateEncoder() {
         return stateEncoder;
     }
 
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     private boolean isPlayer(UUID playerId) {
         return stateEncoder.getMyPlayerId().equals(playerId);
     }
@@ -98,14 +116,22 @@ public class PlayerRecorder implements GameRecorder {
     @Override
     public void recordTargetSelections(Set<Integer> preDecisionState, Target target,
                                        UUID abilityControllerId, Ability source, Game game, Cards cards, UUID playerId) {
+<<<<<<< HEAD
         // Note: for multi-target selections, the human UI resolves all targets in one
         // blocking call, so we can't capture intermediate states between picks the way
         // the MCTS bot does. Each target is recorded against the pre-decision state.
+=======
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
         try {
             for (UUID targetId : target.getTargets()) {
                 int[] actionVec = new int[128];
                 String targetName = game.getObject(targetId) != null
+<<<<<<< HEAD
                         ? game.getObject(targetId).getName() : targetId.toString();
+=======
+                        ? game.getObject(targetId).getName()
+                        : targetId.toString();
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
                 int idx = actionEncoder.getTargetIndex(targetName);
                 actionVec[idx] = 1;
                 addState(preDecisionState, actionVec, ActionEncoder.ActionType.CHOOSE_TARGET, playerId);
@@ -115,7 +141,11 @@ public class PlayerRecorder implements GameRecorder {
                     : target.isChoiceCompleted(abilityControllerId, source, game, null);
             if (!choiceCompleted) {
                 int[] stopVec = new int[128];
+<<<<<<< HEAD
                 stopVec[0] = 1; // index 0 = "Stop Choosing" in ActionEncoder.targetMap
+=======
+                stopVec[0] = 1;
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
                 addState(preDecisionState, stopVec, ActionEncoder.ActionType.CHOOSE_TARGET, playerId);
             }
         } catch (Exception e) {
@@ -128,7 +158,11 @@ public class PlayerRecorder implements GameRecorder {
         Set<Integer> stateVector = capturePreDecisionState(game, playerId);
         if (stateVector != null) {
             int[] actionVec = new int[128];
+<<<<<<< HEAD
             actionVec[0] = 1; // index 0 = Pass in ActionEncoder
+=======
+            actionVec[0] = 1;
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
             addState(stateVector, actionVec, ActionEncoder.ActionType.PRIORITY, playerId);
         }
     }
@@ -155,6 +189,7 @@ public class PlayerRecorder implements GameRecorder {
         }
     }
 
+<<<<<<< HEAD
     /**
      * Applies TD-discount to a list of labeled states, setting resultLabel on each.
      * Shared by both PlayerRecorder (human games) and ParallelDataGenerator (bot games).
@@ -163,6 +198,12 @@ public class PlayerRecorder implements GameRecorder {
         int N = states.size();
         double discountedFuture = playerWon ? 1.0 : -1.0;
         for (int i = N - 1; i >= 0; i--) {
+=======
+    public static void applyTDDiscount(List<LabeledState> states, boolean playerWon, double tdDiscount) {
+        int stateCount = states.size();
+        double discountedFuture = playerWon ? 1.0 : -1.0;
+        for (int i = stateCount - 1; i >= 0; i--) {
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
             discountedFuture = (tdDiscount * discountedFuture)
                     + (states.get(i).stateScore * (1 - tdDiscount));
             states.get(i).resultLabel = discountedFuture;
@@ -178,6 +219,7 @@ public class PlayerRecorder implements GameRecorder {
         List<LabeledState> states = stateEncoder.labeledStates;
         applyTDDiscount(states, playerWon, tdDiscount);
 
+<<<<<<< HEAD
         // Write HDF5 in the same CSR format as MageZero training pipeline
         // String hdf5Path = outputPath.endsWith(".hdf5") ? outputPath : outputPath.replace(".bin", ".hdf5");
         LabeledStateWriter fwA;
@@ -202,5 +244,22 @@ public class PlayerRecorder implements GameRecorder {
         logger.info("Wrote " + states.size() + " RL training states to " + playerAPath + " and " + playerBPath);
         return states.size();
         
+=======
+        try (LabeledStateWriter playerAWriter = new LabeledStateWriter(playerAPath);
+             LabeledStateWriter playerBWriter = new LabeledStateWriter(playerBPath)) {
+            for (LabeledState state : states) {
+                if (state.isPlayer) {
+                    playerAWriter.writeRecord(state);
+                } else {
+                    playerBWriter.writeRecord(state);
+                }
+            }
+        } catch (IOException e) {
+            logger.error("Failed to write RL training data files: " + e.getMessage());
+        }
+
+        logger.info("Wrote " + states.size() + " RL training states to " + playerAPath + " and " + playerBPath);
+        return states.size();
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     }
 }

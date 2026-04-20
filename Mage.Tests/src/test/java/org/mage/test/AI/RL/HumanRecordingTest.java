@@ -1,5 +1,6 @@
 package org.mage.test.AI.RL;
 
+<<<<<<< HEAD
 import mage.cards.decks.Deck;
 import mage.cards.decks.DeckCardLists;
 import mage.cards.decks.importer.DeckImporter;
@@ -22,10 +23,38 @@ import org.junit.jupiter.api.*;
 
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+=======
+import ch.systemsx.cisd.hdf5.HDF5Factory;
+import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import mage.cards.decks.Deck;
+import mage.cards.decks.DeckCardLists;
+import mage.cards.decks.importer.DeckImporter;
+import mage.cards.repository.CardRepository;
+import mage.cards.repository.CardScanner;
+import mage.cards.repository.RepositoryUtil;
+import mage.collectors.services.RLTrainingDataCollector;
+import mage.constants.MultiplayerAttackOption;
+import mage.constants.RangeOfInfluence;
+import mage.game.Game;
+import mage.game.TwoPlayerDuel;
+import mage.game.match.Match;
+import mage.game.match.MatchOptions;
+import mage.game.mulligan.MulliganType;
+import mage.player.ai.ComputerPlayer7;
+import mage.player.ai.encoder.ActionEncoder;
+import mage.player.ai.encoder.StateEncoder;
+import mage.player.ai.recorder.PlayerRecorder;
+import mage.player.human.HumanPlayer;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+<<<<<<< HEAD
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,6 +67,17 @@ public class HumanRecordingTest {
 
     private static final String DECK_A = "decks/Standard-MonoR.dck";
     private static final String DECK_B = "decks/Standard-MonoR.dck";
+=======
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public class HumanRecordingTest {
+
+    private static final String TEST_DECK = "Mage.Tests/decks/Standard-MonoR.dck";
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
 
     @BeforeAll
     static void setup() {
@@ -48,6 +88,7 @@ public class HumanRecordingTest {
     }
 
     @Test
+<<<<<<< HEAD
     void testEnableRLRecordingOnHumanPlayer() {
         HumanPlayer human = new HumanPlayer("TestHuman", RangeOfInfluence.ONE, 1);
         assertFalse(human.isRlRecordingEnabled(), "Recording should be disabled by default");
@@ -573,6 +614,32 @@ public class HumanRecordingTest {
         Game game = createTestGame(human, opponent);
 
         // Attach recorder with states
+=======
+    void testImportDeckFromFileBackfillsDeckNameFromPath() {
+        DeckCardLists deck = DeckImporter.importDeckFromFile(TEST_DECK, true);
+        assertEquals("Standard-MonoR", deck.getName(), "Importer should derive the deck name from the file path");
+    }
+
+    @Test
+    void testCollectorAttachesRecorderForHumanVsBot() throws Exception {
+        HumanPlayer human = new HumanPlayer("Human", RangeOfInfluence.ONE, 1);
+        ComputerPlayer7 bot = new ComputerPlayer7("Bot", RangeOfInfluence.ONE, 6);
+        Game game = createTestGame(human, bot);
+
+        RLTrainingDataCollector collector = new RLTrainingDataCollector();
+        collector.onGameStart(game);
+
+        assertNotNull(human.getRecorder(), "Collector should attach a recorder to the human player");
+        assertNull(bot.getRecorder(), "Collector should not attach a recorder to the bot");
+    }
+
+    @Test
+    void testRLTrainingDataCollectorWritesFilesOnGameEnd() throws Exception {
+        HumanPlayer human = new HumanPlayer("Human", RangeOfInfluence.ONE, 1);
+        HumanPlayer opponent = new HumanPlayer("Opponent", RangeOfInfluence.ONE, 1);
+        Game game = createTestGame(human, opponent);
+
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
         StateEncoder encoder = new StateEncoder();
         encoder.setAgent(human.getId());
         encoder.setOpponent(opponent.getId());
@@ -580,6 +647,7 @@ public class HumanRecordingTest {
 
         for (int i = 0; i < 5; i++) {
             int[] action = new int[128];
+<<<<<<< HEAD
             action[i % 128] = 1;
             encoder.addLabeledState(Set.of(i, i + 100), action, 0.1 * i,
                     ActionEncoder.ActionType.PRIORITY, true);
@@ -614,10 +682,41 @@ public class HumanRecordingTest {
 
         // Clean up
         outputFile.delete();
+=======
+            action[i] = 1;
+            encoder.addLabeledState(Set.of(i, i + 100), action, 0.1 * i, ActionEncoder.ActionType.PRIORITY, true);
+        }
+
+        Path tempDir = Files.createTempDirectory("rl_test_output_");
+        RLTrainingDataCollector collector = new RLTrainingDataCollector(tempDir.toString());
+        collector.onGameEnd(game);
+
+        File[] files = tempDir.toFile().listFiles((dir, name) -> name.endsWith(".hdf5"));
+        assertNotNull(files, "Output directory should exist");
+        assertEquals(2, files.length, "Recorder should write player-A and player-B files");
+
+        File playerAFile = null;
+        for (File file : files) {
+            try (IHDF5Reader reader = HDF5Factory.openForReading(file)) {
+                float[][] rows = reader.float32().readMatrix("/row");
+                if (rows.length == 5) {
+                    playerAFile = file;
+                    assertTrue(rows[0][128] < 0, "Labels should be negative when player.hasWon() is false");
+                }
+            }
+        }
+        assertNotNull(playerAFile, "One output file should contain the recorded states");
+        assertNull(opponent.getRecorder(), "Opponent should remain without a recorder");
+
+        for (File file : files) {
+            file.delete();
+        }
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
         tempDir.toFile().delete();
     }
 
     @Test
+<<<<<<< HEAD
     void testDataCollectorSkipsPlayersWithoutRecorder() throws Exception {
         HumanPlayer playerA = new HumanPlayer("PlayerA", RangeOfInfluence.ONE, 1);
         HumanPlayer playerB = new HumanPlayer("PlayerB", RangeOfInfluence.ONE, 1);
@@ -657,10 +756,56 @@ public class HumanRecordingTest {
         File[] files = tempDir.toFile().listFiles();
         assertTrue(files == null || files.length == 0,
                 "No files should be created when recorder has zero states");
+=======
+    void testCollectorSkipsPlayersWithoutRecordedStates() throws Exception {
+        HumanPlayer human = new HumanPlayer("Human", RangeOfInfluence.ONE, 1);
+        HumanPlayer opponent = new HumanPlayer("Opponent", RangeOfInfluence.ONE, 1);
+        Game game = createTestGame(human, opponent);
+
+        human.setRecorder(new PlayerRecorder(new StateEncoder()));
+
+        Path tempDir = Files.createTempDirectory("rl_empty_test_");
+        RLTrainingDataCollector collector = new RLTrainingDataCollector(tempDir.toString());
+        collector.onGameEnd(game);
+
+        File[] files = tempDir.toFile().listFiles();
+        assertTrue(files == null || files.length == 0, "No files should be created for an empty recorder");
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
 
         tempDir.toFile().delete();
     }
 
+<<<<<<< HEAD
+=======
+    private Game createTestGame(mage.players.Player playerA, mage.players.Player playerB) throws Exception {
+        MatchOptions matchOptions = new MatchOptions("test", "test", false);
+        Match match = new mage.game.TwoPlayerMatch(matchOptions);
+        Game game = new TwoPlayerDuel(
+                MultiplayerAttackOption.LEFT,
+                RangeOfInfluence.ONE,
+                MulliganType.GAME_DEFAULT.getMulligan(0),
+                60,
+                20,
+                7
+        );
+
+        DeckCardLists listA = DeckImporter.importDeckFromFile(TEST_DECK, true);
+        Deck deckA = Deck.load(listA, false, false);
+        DeckCardLists listB = DeckImporter.importDeckFromFile(TEST_DECK, true);
+        Deck deckB = Deck.load(listB, false, false);
+
+        game.loadCards(deckA.getCards(), playerA.getId());
+        game.addPlayer(playerA, deckA);
+        match.addPlayer(playerA, deckA);
+
+        game.loadCards(deckB.getCards(), playerB.getId());
+        game.addPlayer(playerB, deckB);
+        match.addPlayer(playerB, deckB);
+
+        return game;
+    }
+
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
     @AfterAll
     static void cleanup() {
         CardRepository.instance.closeDB(true);

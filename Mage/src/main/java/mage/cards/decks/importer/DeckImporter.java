@@ -85,11 +85,19 @@ public abstract class DeckImporter {
         if (deckImporter != null) {
             DeckCardLists deckList = deckImporter.importDeck(file, errorMessages, saveAutoFixedFile);
             if (deckList != null && (deckList.getName() == null || deckList.getName().isEmpty())) {
+<<<<<<< HEAD
                 File f = new File(file);
                 String name = f.getName();
                 int pos = name.lastIndexOf(".");
                 if (pos > 0) {
                     name = name.substring(0, pos);
+=======
+                File fileInfo = new File(file);
+                String name = fileInfo.getName();
+                int extPos = name.lastIndexOf('.');
+                if (extPos > 0) {
+                    name = name.substring(0, extPos);
+>>>>>>> 257d88b400b8488c0398092ba9281d8c2dba4616
                 }
                 deckList.setName(name);
             }

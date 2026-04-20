@@ -74,6 +74,7 @@ public abstract class PermanentImpl extends CardImpl implements Permanent {
     protected boolean monstrous;
     protected boolean renowned;
     protected boolean suspected;
+    protected boolean prepared;
     protected boolean harnessed = false;
     protected boolean manifested = false;
     protected boolean cloaked = false;
@@ -182,6 +183,7 @@ public abstract class PermanentImpl extends CardImpl implements Permanent {
         this.monstrous = permanent.monstrous;
         this.renowned = permanent.renowned;
         this.suspected = permanent.suspected;
+        this.prepared = permanent.prepared;
         this.harnessed = permanent.harnessed;
         this.ringBearerFlag = permanent.ringBearerFlag;
         this.classLevel = permanent.classLevel;
@@ -297,6 +299,16 @@ public abstract class PermanentImpl extends CardImpl implements Permanent {
         names.sort(String::compareTo);
         for(String attName : names) {
             sb.append(attName);
+        }
+        if(isCreature()) {
+            if(isAttacking()) {
+                sb.append("Attacking");
+                List<String> blocking = game.getCombat().findGroup(getId()).getBlockers().stream().map(id -> game.getEntityName(id, targetPlayer)).collect(Collectors.toList());
+                blocking.sort(String::compareTo);
+                for (String blockingName : blocking) {
+                    sb.append(blockingName).append("Blocking");
+                }
+            }
         }
         for (Counter counter : getCounters(game).values().stream().sorted(Comparator.comparing(Counter::getName)).collect(Collectors.toList())) {
             sb.append(counter.getName()).append(counter.getCount());
@@ -1815,6 +1827,26 @@ public abstract class PermanentImpl extends CardImpl implements Permanent {
         }
 
         this.ringBearerFlag = value;
+    }
+
+    private static final String preparedInfoKey = "IS_PREPARED";
+
+    @Override
+    public boolean isPrepared() {
+        return prepared;
+    }
+
+    @Override
+    public void setPrepared(boolean prepared, Game game) {
+        if (this.prepared == prepared) {
+            return;
+        }
+        this.prepared = prepared;
+        if (this.prepared) {
+            addInfo(preparedInfoKey, CardUtil.addToolTipMarkTags("Prepared"), game);
+        } else {
+            addInfo(preparedInfoKey, null, game);
+        }
     }
 
     @Override

@@ -9,9 +9,9 @@ import mage.constants.SubType;
 /**
  * @author TheElk801
  */
-public final class Pest11GainLifeToken extends TokenImpl {
+public final class PestBlackGreenDiesToken extends TokenImpl {
 
-    public Pest11GainLifeToken() {
+    public PestBlackGreenDiesToken() {
         super("Pest Token", "1/1 black and green Pest creature token with \"When this token dies, you gain 1 life.\"");
         cardType.add(CardType.CREATURE);
         color.setBlack(true);
@@ -20,14 +20,14 @@ public final class Pest11GainLifeToken extends TokenImpl {
         power = new MageInt(1);
         toughness = new MageInt(1);
 
-        this.addAbility(new DiesSourceTriggeredAbility(new GainLifeEffect(1)).setTriggerPhrase("When this creature dies, "));
+        this.addAbility(new DiesSourceTriggeredAbility(new GainLifeEffect(1)));
     }
 
-    private Pest11GainLifeToken(final Pest11GainLifeToken token) {
+    private PestBlackGreenDiesToken(final PestBlackGreenDiesToken token) {
         super(token);
     }
 
-    public Pest11GainLifeToken copy() {
-        return new Pest11GainLifeToken(this);
+    public PestBlackGreenDiesToken copy() {
+        return new PestBlackGreenDiesToken(this);
     }
 }
