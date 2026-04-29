@@ -88,6 +88,9 @@ public class SaveGameHistoryDataCollector extends EmptyDataCollector {
     // stats: gameId -> playerName -> cardType -> count
     Map<UUID, Map<String, Map<CardType, Integer>>> gameStats = new ConcurrentHashMap<>();
 
+    // stats: gameId -> playerName -> colorDescription -> count
+    Map<UUID, Map<String, Map<String, Integer>>> colorStats = new ConcurrentHashMap<>();
+
     // all write operations must be done in single thread
     // TODO: analyse load tests performance and split locks per table/game
     // TODO: limit file sizes for possible game freeze?
@@ -208,6 +211,7 @@ public class SaveGameHistoryDataCollector extends EmptyDataCollector {
                 MageObject mageObject = game.getObject(objectId);
                 if (mageObject != null) {
                     recordTypeStats(game.getId(), playerName, mageObject, game);
+                    recordColorStats(game.getId(), playerName, mageObject, game);
                 }
             } catch (IllegalArgumentException e) {
                 // Safely ignore UUID parsing errors if a log string somehow triggered a false positive match
@@ -239,45 +243,81 @@ public class SaveGameHistoryDataCollector extends EmptyDataCollector {
     }
 
     /**
-     * Serializes the gathered card type statistics into a human-readable text file ("type_stats.txt")
-     * within the game's output directory. 
+     * Records the color(s) of a played card to the player's lifetime statistics for the current game.
+     */
+    private void recordColorStats(UUID gameId, String playerName, MageObject mageObject, Game game) {
+        Map<String, Map<String, Integer>> playerColorStats = colorStats.computeIfAbsent(gameId, k -> new ConcurrentHashMap<>());
+        Map<String, Integer> colorCounts = playerColorStats.computeIfAbsent(playerName, k -> new ConcurrentHashMap<>());
+
+        String colorDescription = mageObject.getColor(game).getDescription();
+        colorCounts.merge(colorDescription, 1, Integer::sum);
+    }
+
+    /**
+     * Serializes the gathered card type and color statistics into a human-readable text file ("game_stats.txt")
+     * within the game's output directory.
      */
     private void writeTypeStatsToFile(Game game) {
         Map<String, Map<CardType, Integer>> playerStats = gameStats.get(game.getId());
+        Map<String, Map<String, Integer>> playerColorStats = colorStats.get(game.getId());
+        
         if (playerStats == null || playerStats.isEmpty()) {
             return; // No recorded plays (e.g., game aborted early or simulated without players)
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("Card Type Stats for Game: ").append(game.getId()).append("\n");
-        sb.append("========================================\n");
+        sb.append("Game Statistics for Game: ").append(game.getId()).append("\n");
+
+        // Code to record the winner:
+        for (Player player : game.getPlayers().values()) {
+            if (player.hasWon()) {
+                sb.append("Winner: ").append(player.getName()).append("\n");
+            }
+        }
+
+        sb.append("========================================\n\n");
 
         // Sort player names alphabetically for consistent reporting
         List<String> sortedPlayers = new ArrayList<>(playerStats.keySet());
         Collections.sort(sortedPlayers);
 
-        // The specific types and specific order requested for the output
-        CardType[] targetTypes = {CardType.CREATURE, CardType.ARTIFACT, CardType.ENCHANTMENT, CardType.INSTANT, CardType.SORCERY, CardType.LAND};
-
         // Format each player's totals
         for (String playerName : sortedPlayers) {
             sb.append("Player: ").append(playerName).append("\n");
+            
+            // 1. Card Type Stats
+            sb.append("  Card Types:\n");
+            CardType[] targetTypes = {CardType.CREATURE, CardType.ARTIFACT, CardType.ENCHANTMENT, CardType.INSTANT, CardType.SORCERY, CardType.LAND};
             Map<CardType, Integer> counts = playerStats.get(playerName);
             for (CardType type : targetTypes) {
-                int count = counts.getOrDefault(type, 0); // Default to 0 if they played 0 cards of this type
-                sb.append("  ").append(type.toString()).append(": ").append(count).append("\n");
+                int count = counts != null ? counts.getOrDefault(type, 0) : 0;
+                sb.append("    ").append(type.toString()).append(": ").append(count).append("\n");
             }
+
+            // 2. Color Usage Stats
+            sb.append("  Colors:\n");
+            String[] targetColors = {"white", "blue", "black", "red", "green", "multicolored", "colorless"};
+            Map<String, Integer> cCounts = playerColorStats != null ? playerColorStats.get(playerName) : null;
+            for (String color : targetColors) {
+                int count = cCounts != null ? cCounts.getOrDefault(color, 0) : 0;
+                // Capitalize first letter for display
+                String label = color.substring(0, 1).toUpperCase() + color.substring(1);
+                // Use 'X' for colorless as requested
+                if (color.equals("colorless")) label = "Colorless (X)";
+                sb.append("    ").append(label).append(": ").append(count).append("\n");
+            }
+            
             sb.append("\n");
         }
 
         // Save the generated report to the game's designated output directory alongside the logs
         String gameDir = getOrCreateGameDir(game, isActive(game));
         if (!gameDir.isEmpty()) {
-            Path statsFile = Paths.get(gameDir, "type_stats.txt");
+            Path statsFile = Paths.get(gameDir, "game_stats.txt");
             try {
                 Files.write(statsFile, sb.toString().getBytes(StandardCharsets.UTF_8));
             } catch (IOException e) {
-                logger.error("Can't write type_stats.txt for game " + game.getId() + ": " + e, e);
+                logger.error("Can't write game_stats.txt for game " + game.getId() + ": " + e, e);
             }
         }
     }
@@ -286,12 +326,13 @@ public class SaveGameHistoryDataCollector extends EmptyDataCollector {
     public void onGameEnd(Game game) {
         if (!this.enabled) return;
         
-        // Generate and save the final card type statistics file before the game directory 
+        // Generate and save the final card type and color statistics file before the game directory 
         // is moved from "games_active" to "games_done".
         writeTypeStatsToFile(game);
         
         // Clean up memory to prevent a leak across multiple server games
         gameStats.remove(game.getId());
+        colorStats.remove(game.getId());
 
         writeToGameLogsFile(game, new Date() + " [END] " + game.getId() + ", " + game);
 
